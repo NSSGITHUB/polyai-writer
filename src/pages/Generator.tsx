@@ -1,0 +1,274 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+const Generator = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [generating, setGenerating] = useState(false);
+
+  const [formData, setFormData] = useState({
+    topic: "",
+    keywords: "",
+    outline: "",
+    language: "zh-TW",
+    style: "professional",
+    wordCount: "1000",
+    selectedModels: {
+      openai: true,
+      google: false,
+      anthropic: false,
+      xai: false,
+    },
+  });
+
+  const handleGenerate = async () => {
+    if (!formData.topic) {
+      toast({
+        title: "請輸入文章主題",
+        description: "主題關鍵字為必填項目",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedCount = Object.values(formData.selectedModels).filter(Boolean).length;
+    if (selectedCount === 0) {
+      toast({
+        title: "請選擇至少一個AI模型",
+        description: "需要選擇至少一個AI模型來生成文章",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGenerating(true);
+    
+    // TODO: Implement actual AI generation logic
+    setTimeout(() => {
+      setGenerating(false);
+      toast({
+        title: "文章生成成功！",
+        description: `已使用 ${selectedCount} 個AI模型生成文章`,
+      });
+      navigate("/articles");
+    }, 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-hero">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center mb-8">
+          <Button
+            variant="ghost"
+            className="mr-4"
+            onClick={() => navigate("/dashboard")}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">AI文章生成器</h1>
+            <p className="text-muted-foreground">使用多個AI模型一次生成高質量SEO文章</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form */}
+          <Card className="lg:col-span-2 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
+            <div className="space-y-6">
+              {/* Topic */}
+              <div className="space-y-2">
+                <Label htmlFor="topic">文章主題 *</Label>
+                <Input
+                  id="topic"
+                  placeholder="例如：人工智慧在醫療領域的應用"
+                  value={formData.topic}
+                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                />
+              </div>
+
+              {/* Keywords */}
+              <div className="space-y-2">
+                <Label htmlFor="keywords">關鍵字</Label>
+                <Input
+                  id="keywords"
+                  placeholder="用逗號分隔，例如：AI, 醫療, 診斷"
+                  value={formData.keywords}
+                  onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
+                />
+              </div>
+
+              {/* Outline */}
+              <div className="space-y-2">
+                <Label htmlFor="outline">文章大綱（選填）</Label>
+                <Textarea
+                  id="outline"
+                  placeholder="輸入文章大綱或讓AI自動生成"
+                  className="min-h-[120px]"
+                  value={formData.outline}
+                  onChange={(e) => setFormData({ ...formData, outline: e.target.value })}
+                />
+              </div>
+
+              {/* Settings Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="language">語言</Label>
+                  <Select
+                    value={formData.language}
+                    onValueChange={(value) => setFormData({ ...formData, language: value })}
+                  >
+                    <SelectTrigger id="language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="zh-TW">繁體中文</SelectItem>
+                      <SelectItem value="zh-CN">简体中文</SelectItem>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="ja">日本語</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="style">寫作風格</Label>
+                  <Select
+                    value={formData.style}
+                    onValueChange={(value) => setFormData({ ...formData, style: value })}
+                  >
+                    <SelectTrigger id="style">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="professional">專業正式</SelectItem>
+                      <SelectItem value="casual">輕鬆口語</SelectItem>
+                      <SelectItem value="technical">技術專業</SelectItem>
+                      <SelectItem value="creative">創意生動</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="wordCount">字數</Label>
+                  <Select
+                    value={formData.wordCount}
+                    onValueChange={(value) => setFormData({ ...formData, wordCount: value })}
+                  >
+                    <SelectTrigger id="wordCount">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="500">500字</SelectItem>
+                      <SelectItem value="1000">1000字</SelectItem>
+                      <SelectItem value="1500">1500字</SelectItem>
+                      <SelectItem value="2000">2000字</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* AI Model Selection */}
+          <Card className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
+            <h3 className="text-xl font-semibold mb-4">選擇AI模型</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              選擇一個或多個AI模型來生成文章
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <Checkbox
+                  id="openai"
+                  checked={formData.selectedModels.openai}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      selectedModels: { ...formData.selectedModels, openai: !!checked },
+                    })
+                  }
+                />
+                <Label htmlFor="openai" className="flex-1 cursor-pointer">
+                  <div className="font-medium">OpenAI GPT</div>
+                  <div className="text-xs text-muted-foreground">最受歡迎的AI模型</div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <Checkbox
+                  id="google"
+                  checked={formData.selectedModels.google}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      selectedModels: { ...formData.selectedModels, google: !!checked },
+                    })
+                  }
+                />
+                <Label htmlFor="google" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Google Gemini</div>
+                  <div className="text-xs text-muted-foreground">強大的多模態模型</div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <Checkbox
+                  id="anthropic"
+                  checked={formData.selectedModels.anthropic}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      selectedModels: { ...formData.selectedModels, anthropic: !!checked },
+                    })
+                  }
+                />
+                <Label htmlFor="anthropic" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Anthropic Claude</div>
+                  <div className="text-xs text-muted-foreground">擅長長文本理解</div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <Checkbox
+                  id="xai"
+                  checked={formData.selectedModels.xai}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      selectedModels: { ...formData.selectedModels, xai: !!checked },
+                    })
+                  }
+                />
+                <Label htmlFor="xai" className="flex-1 cursor-pointer">
+                  <div className="font-medium">xAI Grok</div>
+                  <div className="text-xs text-muted-foreground">最新AI技術</div>
+                </Label>
+              </div>
+            </div>
+
+            <Button
+              className="w-full mt-6 bg-gradient-primary hover:shadow-glow"
+              size="lg"
+              onClick={handleGenerate}
+              disabled={generating}
+            >
+              <Sparkles className="mr-2 w-5 h-5" />
+              {generating ? "生成中..." : "開始生成文章"}
+            </Button>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Generator;
