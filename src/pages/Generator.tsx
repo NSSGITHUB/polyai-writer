@@ -171,6 +171,11 @@ const Generator = () => {
                       <SelectItem value="1000">1000字</SelectItem>
                       <SelectItem value="1500">1500字</SelectItem>
                       <SelectItem value="2000">2000字</SelectItem>
+                      <SelectItem value="3000">3000字</SelectItem>
+                      <SelectItem value="4000">4000字</SelectItem>
+                      <SelectItem value="5000">5000字</SelectItem>
+                      <SelectItem value="8000">8000字</SelectItem>
+                      <SelectItem value="10000">10000字</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
