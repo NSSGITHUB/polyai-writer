@@ -150,7 +150,7 @@ const Articles = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(`${API_BASE_URL}/get-article.php?id=${article.id}`, "_blank")}
+                        onClick={() => navigate(`/articles/${article.id}`)}
                       >
                         檢視
                       </Button>
