@@ -18,8 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON payload']);
+        exit;
+    }
     $userId = $data['userId'] ?? '';
     $title = $data['title'] ?? '';
     $content = $data['content'] ?? '';

@@ -18,6 +18,12 @@ const Generator = () => {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string>("");
 
+  // 需登入方可使用
+  if (!localStorage.getItem("user")) {
+    navigate("/auth");
+    return null;
+  }
+
   const [formData, setFormData] = useState({
     topic: "",
     keywords: "",
@@ -142,9 +148,10 @@ const Generator = () => {
               description: `已使用 ${results.length} 個AI模型生成並儲存文章`,
             });
           } else {
+            const err = await saveResponse.json().catch(async () => ({ error: await saveResponse.text() }));
             toast({
               title: "文章生成成功但儲存失敗",
-              description: "文章已生成但無法儲存到資料庫",
+              description: err?.error ? String(err.error).slice(0, 200) : `狀態碼 ${saveResponse.status}`,
               variant: "destructive",
             });
           }
