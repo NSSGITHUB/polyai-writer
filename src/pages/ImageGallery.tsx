@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,15 +15,32 @@ interface ImageRecord {
   width: number;
   height: number;
   created_at: string;
+  display_url?: string;
 }
 
 export default function ImageGallery() {
   const navigate = useNavigate();
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const blobUrlsRef = useRef<string[]>([]);
+
+  const dataURLToBlob = (dataUrl: string) => {
+    const [header, base64] = dataUrl.split(",");
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  };
 
   useEffect(() => {
     loadImages();
+    return () => {
+      blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      blobUrlsRef.current = [];
+    };
   }, []);
 
   const loadImages = async () => {
@@ -39,7 +56,24 @@ export default function ImageGallery() {
       const data = await response.json();
       
       if (data.success) {
-        setImages(data.images);
+        // revoke previous blob urls
+        blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+        blobUrlsRef.current = [];
+
+        const mapped: ImageRecord[] = data.images.map((img: ImageRecord) => {
+          if (img.image_url && img.image_url.startsWith('data:image')) {
+            try {
+              const blob = dataURLToBlob(img.image_url);
+              const url = URL.createObjectURL(blob);
+              blobUrlsRef.current.push(url);
+              return { ...img, display_url: url };
+            } catch {
+              return img;
+            }
+          }
+          return img;
+        });
+        setImages(mapped);
       } else {
         toast.error(data.error || "載入圖片失敗");
       }
@@ -53,8 +87,15 @@ export default function ImageGallery() {
 
   const handleDownload = (imageUrl: string, prompt: string) => {
     try {
+      let href = imageUrl;
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        const blob = dataURLToBlob(imageUrl);
+        href = URL.createObjectURL(blob);
+        // auto-revoke later
+        setTimeout(() => URL.revokeObjectURL(href), 5000);
+      }
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = href;
       link.download = `${prompt.slice(0, 30).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
@@ -99,9 +140,9 @@ export default function ImageGallery() {
                 {images.map((image) => (
                   <Card key={image.id} className="overflow-hidden">
                     <div className="aspect-square bg-muted relative">
-                      {image.image_url ? (
+                      {image.display_url || image.image_url ? (
                         <img 
-                          src={image.image_url} 
+                          src={image.display_url || image.image_url} 
                           alt={image.prompt}
                           className="w-full h-full object-cover"
                           onError={(e) => {
