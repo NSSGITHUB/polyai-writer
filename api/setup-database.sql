@@ -35,7 +35,25 @@ CREATE TABLE IF NOT EXISTS `articles` (
   INDEX `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 創建文章統計視圖
+-- 保障欄位已存在（安全升級，不需重建表）
+ALTER TABLE `articles`
+  ADD COLUMN IF NOT EXISTS `topic` VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS `keywords` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `outline` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `language` VARCHAR(10) NULL DEFAULT 'zh-TW',
+  ADD COLUMN IF NOT EXISTS `style` VARCHAR(50) NULL DEFAULT 'professional',
+  ADD COLUMN IF NOT EXISTS `word_count` INT NULL DEFAULT 1000,
+  ADD COLUMN IF NOT EXISTS `ai_provider` VARCHAR(50) NULL,
+  ADD COLUMN IF NOT EXISTS `slug` VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS `status` ENUM('draft','published') NULL DEFAULT 'draft',
+  ADD COLUMN IF NOT EXISTS `has_image` TINYINT(1) NULL DEFAULT 0;
+
+-- 索引（若尚未建立）
+CREATE INDEX IF NOT EXISTS `idx_user_id` ON `articles`(`user_id`);
+CREATE INDEX IF NOT EXISTS `idx_status` ON `articles`(`status`);
+CREATE INDEX IF NOT EXISTS `idx_created_at` ON `articles`(`created_at`);
+
+-- 重新建立統計視圖（確保與最新欄位相容）
 CREATE OR REPLACE VIEW `article_stats` AS
 SELECT 
   user_id,
