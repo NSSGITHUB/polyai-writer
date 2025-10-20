@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ const Dashboard = () => {
   const fetchStats = async (userId: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/get-stats.php?user_id=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/get-stats.php?user_id=${userId}`);
       const data = await response.json();
       
       if (data.success && data.stats) {

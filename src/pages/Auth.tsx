@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -30,12 +31,11 @@ const Auth = () => {
     const password = formData.get("password") as string;
 
     try {
-      const response = await fetch('/api/login.php', {
+      const response = await fetch(`${API_BASE_URL}/login.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await response.json();
 
       if (!response.ok) {
@@ -71,7 +71,7 @@ const Auth = () => {
     const name = formData.get("name") as string;
 
     try {
-      const response = await fetch('/api/register.php', {
+      const response = await fetch(`${API_BASE_URL}/register.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name }),
@@ -84,7 +84,7 @@ const Auth = () => {
       }
 
       // Auto login after signup
-      const loginResponse = await fetch('/api/login.php', {
+      const loginResponse = await fetch(`${API_BASE_URL}/login.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

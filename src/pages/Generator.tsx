@@ -9,8 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-
-const API_BASE_URL = "https://seo.ai.com.tw/api";
+import { API_BASE_URL } from "@/lib/api";
 
 const Generator = () => {
   const navigate = useNavigate();
