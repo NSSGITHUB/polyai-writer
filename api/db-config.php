@@ -5,6 +5,12 @@ define('DB_NAME', 'seoaicomtw');
 define('DB_USER', 'seoaicomtw');
 define('DB_PASS', 'D1#w5w_xGAnxfe5x');
 
+// AI API Keys 設定
+define('OPENAI_API_KEY', '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');
+define('GOOGLE_API_KEY', '');    // 選填
+define('ANTHROPIC_API_KEY', ''); // 選填
+define('XAI_API_KEY', '');       // 選填
+
 function getDBConnection() {
     try {
         $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";

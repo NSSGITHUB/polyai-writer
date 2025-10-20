@@ -50,9 +50,12 @@ $prompt .= "要求：\n- 以清楚的小標題與段落結構呈現（使用 H2/
 $generatedText = '';
 
 try {
+    // Load API keys from config
+    require_once __DIR__ . '/db-config.php';
+    
     // OpenAI GPT
     if ($provider === 'openai') {
-        $apiKey = getenv('OPENAI_API_KEY');
+        $apiKey = OPENAI_API_KEY;
         if (empty($apiKey)) {
             throw new Exception('OPENAI_API_KEY not configured');
         }
@@ -88,7 +91,7 @@ try {
 
     // Google Gemini
     elseif ($provider === 'google') {
-        $apiKey = getenv('GOOGLE_API_KEY');
+        $apiKey = GOOGLE_API_KEY;
         if (empty($apiKey)) {
             throw new Exception('GOOGLE_API_KEY not configured');
         }
@@ -119,7 +122,7 @@ try {
 
     // Anthropic Claude
     elseif ($provider === 'anthropic') {
-        $apiKey = getenv('ANTHROPIC_API_KEY');
+        $apiKey = ANTHROPIC_API_KEY;
         if (empty($apiKey)) {
             throw new Exception('ANTHROPIC_API_KEY not configured');
         }
@@ -154,7 +157,7 @@ try {
 
     // xAI Grok
     elseif ($provider === 'xai') {
-        $apiKey = getenv('XAI_API_KEY');
+        $apiKey = XAI_API_KEY;
         if (empty($apiKey)) {
             throw new Exception('XAI_API_KEY not configured');
         }
