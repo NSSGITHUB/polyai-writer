@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Download, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/api";
 
 interface ImageRecord {
   id: string;
@@ -34,9 +35,7 @@ export default function ImageGallery() {
 
     try {
       const user = JSON.parse(userStr);
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/get-images.php?user_id=${user.id}`
-      );
+      const response = await fetch(`${API_BASE_URL}/get-images.php?user_id=${user.id}`);
       const data = await response.json();
       
       if (data.success) {

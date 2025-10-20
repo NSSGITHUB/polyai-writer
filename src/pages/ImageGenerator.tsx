@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, ImagePlus, Sparkles, Download, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function ImageGenerator() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function ImageGenerator() {
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
-            const saveResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/save-image.php`, {
+            const saveResponse = await fetch(`${API_BASE_URL}/save-image.php`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
