@@ -9,11 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Generator = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<string>("");
 
   const [formData, setFormData] = useState({
     topic: "",
@@ -51,16 +53,47 @@ const Generator = () => {
     }
 
     setGenerating(true);
-    
-    // TODO: Implement actual AI generation logic
-    setTimeout(() => {
-      setGenerating(false);
+    setResult("");
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-article", {
+        body: {
+          topic: formData.topic,
+          keywords: formData.keywords,
+          outline: formData.outline,
+          language: formData.language,
+          style: formData.style,
+          wordCount: Number(formData.wordCount),
+          model: formData.selectedModels.google ? "google/gemini-2.5-flash" : undefined,
+        },
+      });
+
+      if (error) {
+        const message = (error as any)?.message || "AI 產生失敗，請稍後再試。";
+        toast({
+          title: "產生失敗",
+          description: message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const generatedText = (data as any)?.generatedText as string;
+      setResult(generatedText || "");
       toast({
         title: "文章生成成功！",
         description: `已使用 ${selectedCount} 個AI模型生成文章`,
       });
-      navigate("/articles");
-    }, 2000);
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "產生失敗",
+        description: e instanceof Error ? e.message : "未知錯誤",
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -257,8 +290,14 @@ const Generator = () => {
                   <div className="font-medium">xAI Grok</div>
                   <div className="text-xs text-muted-foreground">最新AI技術</div>
                 </Label>
-              </div>
-            </div>
+        </div>
+        {result && (
+          <Card className="mt-6 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
+            <h3 className="text-xl font-semibold mb-4">生成結果</h3>
+            <Textarea readOnly value={result} className="min-h-[300px]" />
+          </Card>
+        )}
+      </div>
 
             <Button
               className="w-full mt-6 bg-gradient-primary hover:shadow-glow"
