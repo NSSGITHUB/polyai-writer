@@ -123,22 +123,36 @@ const Generator = () => {
             return;
           }
           
+          // 準備儲存資料（同時提供 userId 與 user_id 以相容不同版本後端）
+          const payload = {
+            userId: userId,
+            user_id: userId,
+            title: (formData.topic || "").trim() || "未命名文章",
+            content: fullContent,
+            topic: formData.topic,
+            keywords: formData.keywords,
+            outline: formData.outline,
+            language: formData.language,
+            style: formData.style,
+            wordCount: Number(formData.wordCount),
+            aiProvider: selectedProviders.join(", "),
+            status: "published",
+          };
+
+          // 為了除錯：不要印出全文，只記錄長度與必要欄位
+          console.debug("[save-article] sending", {
+            titleLen: payload.title.length,
+            contentLen: payload.content.length,
+            userId: payload.userId,
+          });
+
           const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: userId,
-              title: formData.topic,
-              content: fullContent,
-              topic: formData.topic,
-              keywords: formData.keywords,
-              outline: formData.outline,
-              language: formData.language,
-              style: formData.style,
-              wordCount: Number(formData.wordCount),
-              aiProvider: selectedProviders.join(", "),
-              status: "published",
-            }),
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: JSON.stringify(payload),
           });
 
           if (saveResponse.ok) {
@@ -147,10 +161,17 @@ const Generator = () => {
               description: `已使用 ${results.length} 個AI模型生成並儲存文章`,
             });
           } else {
-            const err = await saveResponse.json().catch(async () => ({ error: await saveResponse.text() }));
+            const raw = await saveResponse.text();
+            let errMsg = raw;
+            try {
+              const parsed = JSON.parse(raw);
+              errMsg = parsed?.error || raw;
+            } catch {}
+
+            console.error("[save-article] failed", saveResponse.status, errMsg);
             toast({
               title: "文章生成成功但儲存失敗",
-              description: err?.error ? String(err.error).slice(0, 200) : `狀態碼 ${saveResponse.status}`,
+              description: `HTTP ${saveResponse.status} - ${String(errMsg).slice(0, 300)}`,
               variant: "destructive",
             });
           }
