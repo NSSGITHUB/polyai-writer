@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,20 +6,90 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+  }, [navigate]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // TODO: Implement authentication
-    setTimeout(() => {
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      toast({
+        title: "登入失敗",
+        description: error.message === "Invalid login credentials" 
+          ? "電子郵件或密碼錯誤" 
+          : error.message,
+        variant: "destructive",
+      });
       setIsLoading(false);
+    } else {
+      toast({
+        title: "登入成功",
+        description: "歡迎回來！",
+      });
       navigate("/dashboard");
-    }, 1500);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: {
+          name,
+        },
+      },
+    });
+
+    if (error) {
+      toast({
+        title: "註冊失敗",
+        description: error.message === "User already registered" 
+          ? "此電子郵件已被註冊" 
+          : error.message,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    } else {
+      toast({
+        title: "註冊成功",
+        description: "帳戶已創建，正在登入...",
+      });
+      navigate("/dashboard");
+    }
   };
 
   return (
@@ -40,11 +110,12 @@ const Auth = () => {
           </TabsList>
 
           <TabsContent value="login">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">電子郵件</Label>
                 <Input 
-                  id="login-email" 
+                  id="login-email"
+                  name="email"
                   type="email" 
                   placeholder="your@email.com"
                   required
@@ -53,7 +124,8 @@ const Auth = () => {
               <div className="space-y-2">
                 <Label htmlFor="login-password">密碼</Label>
                 <Input 
-                  id="login-password" 
+                  id="login-password"
+                  name="password"
                   type="password"
                   required
                 />
@@ -69,11 +141,12 @@ const Auth = () => {
           </TabsContent>
 
           <TabsContent value="signup">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="signup-name">姓名</Label>
                 <Input 
-                  id="signup-name" 
+                  id="signup-name"
+                  name="name"
                   type="text" 
                   placeholder="您的姓名"
                   required
@@ -82,7 +155,8 @@ const Auth = () => {
               <div className="space-y-2">
                 <Label htmlFor="signup-email">電子郵件</Label>
                 <Input 
-                  id="signup-email" 
+                  id="signup-email"
+                  name="email"
                   type="email" 
                   placeholder="your@email.com"
                   required
@@ -91,8 +165,10 @@ const Auth = () => {
               <div className="space-y-2">
                 <Label htmlFor="signup-password">密碼</Label>
                 <Input 
-                  id="signup-password" 
+                  id="signup-password"
+                  name="password"
                   type="password"
+                  minLength={6}
                   required
                 />
               </div>

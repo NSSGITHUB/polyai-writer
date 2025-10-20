@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
@@ -6,18 +7,85 @@ import {
   PlusCircle,
   TrendingUp,
   Users,
-  Zap
+  Zap,
+  LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [stats, setStats] = useState({
+    total: 0,
+    thisMonth: 0,
+    withImages: 0,
+    published: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const stats = [
-    { label: "總文章數", value: "0", icon: FileText, color: "text-primary-glow" },
-    { label: "本月生成", value: "0", icon: Zap, color: "text-accent" },
-    { label: "AI配圖", value: "0", icon: ImageIcon, color: "text-success" },
-    { label: "發布成功", value: "0", icon: TrendingUp, color: "text-primary" },
+  useEffect(() => {
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    // Fetch article statistics
+    fetchStats();
+  }, [navigate]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch("https://seo.ai.com.tw/api/get-articles.php");
+      const data = await response.json();
+      
+      if (data.articles) {
+        const articles = data.articles;
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        const thisMonthArticles = articles.filter((article: any) => {
+          const articleDate = new Date(article.created_at);
+          return articleDate.getMonth() === currentMonth && 
+                 articleDate.getFullYear() === currentYear;
+        });
+
+        setStats({
+          total: data.total || 0,
+          thisMonth: thisMonthArticles.length,
+          withImages: articles.filter((a: any) => a.featured_image).length,
+          published: articles.filter((a: any) => a.status === "published").length,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "登出失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      navigate("/auth");
+    }
+  };
+
+  const statsData = [
+    { label: "總文章數", value: stats.total.toString(), icon: FileText, color: "text-primary-glow" },
+    { label: "本月生成", value: stats.thisMonth.toString(), icon: Zap, color: "text-accent" },
+    { label: "AI配圖", value: stats.withImages.toString(), icon: ImageIcon, color: "text-success" },
+    { label: "發布成功", value: stats.published.toString(), icon: TrendingUp, color: "text-primary" },
   ];
 
   return (
@@ -29,18 +97,28 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold mb-2">控制台</h1>
             <p className="text-muted-foreground">歡迎回來，開始創作精彩內容吧！</p>
           </div>
-          <Button 
-            className="bg-gradient-primary hover:shadow-glow"
-            onClick={() => navigate("/generator")}
-          >
-            <PlusCircle className="mr-2 w-5 h-5" />
-            新增文章
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              className="border-primary/30"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 w-5 h-5" />
+              登出
+            </Button>
+            <Button 
+              className="bg-gradient-primary hover:shadow-glow"
+              onClick={() => navigate("/generator")}
+            >
+              <PlusCircle className="mr-2 w-5 h-5" />
+              新增文章
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
+          {statsData.map((stat, index) => (
             <Card 
               key={index}
               className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 transition-all"
@@ -48,7 +126,9 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
+                  <p className="text-3xl font-bold">
+                    {isLoading ? "..." : stat.value}
+                  </p>
                 </div>
                 <stat.icon className={`w-8 h-8 ${stat.color}`} />
               </div>
