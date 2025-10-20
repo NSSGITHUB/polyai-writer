@@ -53,12 +53,14 @@ export default function ImageGenerator() {
                 article_id: articleId || null,
                 prompt: imagePrompt,
                 image_url: data.imageUrl,
-                image_data: data.imageUrl.startsWith('data:') ? data.imageUrl : null
+                image_data: data.imageUrl // 保存完整的 base64 數據
               })
             });
             const saveData = await saveResponse.json();
             if (!saveData.success) {
               console.error("保存圖片記錄失敗:", saveData.error);
+            } else {
+              console.log("圖片記錄已保存");
             }
           } catch (saveError) {
             console.error("保存圖片記錄失敗:", saveError);

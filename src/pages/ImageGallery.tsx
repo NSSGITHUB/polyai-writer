@@ -52,10 +52,18 @@ export default function ImageGallery() {
   };
 
   const handleDownload = (imageUrl: string, prompt: string) => {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `${prompt.slice(0, 30)}-${Date.now()}.png`;
-    link.click();
+    try {
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `${prompt.slice(0, 30).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("圖片下載已開始");
+    } catch (error) {
+      console.error("下載失敗:", error);
+      toast.error("下載失敗，請稍後再試");
+    }
   };
 
   return (
@@ -91,11 +99,21 @@ export default function ImageGallery() {
                 {images.map((image) => (
                   <Card key={image.id} className="overflow-hidden">
                     <div className="aspect-square bg-muted relative">
-                      <img 
-                        src={image.image_url} 
-                        alt={image.prompt}
-                        className="w-full h-full object-cover"
-                      />
+                      {image.image_url ? (
+                        <img 
+                          src={image.image_url} 
+                          alt={image.prompt}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error("圖片載入失敗:", image.id);
+                            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          無圖片數據
+                        </div>
+                      )}
                     </div>
                     <CardContent className="p-4">
                       <p className="text-sm text-muted-foreground mb-2 line-clamp-2">

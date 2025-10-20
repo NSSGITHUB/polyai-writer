@@ -36,7 +36,7 @@ try {
             ai.id,
             ai.article_id,
             ai.prompt,
-            ai.image_url,
+            COALESCE(ai.image_data, ai.image_url) as image_url,
             ai.width,
             ai.height,
             ai.is_selected,
