@@ -101,11 +101,47 @@ const Generator = () => {
       }
 
       if (results.length > 0) {
-        setResult(results.join("\n" + "=".repeat(50) + "\n\n"));
-        toast({
-          title: "文章生成成功！",
-          description: `已使用 ${results.length} 個AI模型生成文章`,
-        });
+        const fullContent = results.join("\n" + "=".repeat(50) + "\n\n");
+        setResult(fullContent);
+        
+        // 自動儲存到資料庫
+        try {
+          const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.topic,
+              content: fullContent,
+              topic: formData.topic,
+              keywords: formData.keywords,
+              outline: formData.outline,
+              language: formData.language,
+              style: formData.style,
+              wordCount: Number(formData.wordCount),
+              aiProvider: selectedProviders.join(", "),
+              status: "published",
+            }),
+          });
+
+          if (saveResponse.ok) {
+            toast({
+              title: "文章生成並儲存成功！",
+              description: `已使用 ${results.length} 個AI模型生成並儲存文章`,
+            });
+          } else {
+            toast({
+              title: "文章生成成功但儲存失敗",
+              description: "文章已生成但無法儲存到資料庫",
+              variant: "destructive",
+            });
+          }
+        } catch (saveError) {
+          console.error("Save error:", saveError);
+          toast({
+            title: "文章生成成功",
+            description: `已使用 ${results.length} 個AI模型生成文章（儲存失敗）`,
+          });
+        }
       } else {
         toast({
           title: "產生失敗",
