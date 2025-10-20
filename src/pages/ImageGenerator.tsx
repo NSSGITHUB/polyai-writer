@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ImagePlus, Sparkles, Download } from "lucide-react";
+import { ArrowLeft, ImagePlus, Sparkles, Download, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -82,14 +82,22 @@ export default function ImageGenerator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto py-8 px-4">
-        <Button
-          onClick={() => navigate("/dashboard")}
-          variant="ghost"
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          返回儀表板
-        </Button>
+        <div className="flex justify-between items-center mb-6">
+          <Button
+            onClick={() => navigate("/dashboard")}
+            variant="ghost"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回儀表板
+          </Button>
+          <Button
+            onClick={() => navigate("/image-gallery")}
+            variant="outline"
+          >
+            <History className="mr-2 h-4 w-4" />
+            查看圖片歷史
+          </Button>
+        </div>
 
         <Card>
           <CardHeader>
