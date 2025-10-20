@@ -6,6 +6,8 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Accept, X-Debug');
 header('Content-Type: application/json; charset=utf-8');
 
+$debug = isset($_SERVER['HTTP_X_DEBUG']) && $_SERVER['HTTP_X_DEBUG'] === '1';
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit(0);
@@ -73,6 +75,23 @@ try {
     }
     
     $db = getDBConnection();
+
+    // 診斷：檢查資料庫與 articles 結構（僅在 X-Debug=1 時回傳）
+    if ($debug) {
+        try {
+            $diag = [ 'db_connect' => true ];
+            $db->query('SELECT 1');
+            $stmtDiag = $db->prepare("SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'articles'");
+            $stmtDiag->execute([':db' => DB_NAME]);
+            $diag['articles_columns'] = (int)($stmtDiag->fetch()['cnt'] ?? 0);
+        } catch (Throwable $dx) {
+            $diag = [
+                'db_connect' => false,
+                'db_error' => $dx->getMessage(),
+            ];
+        }
+    }
+
     
     $sql = "INSERT INTO articles (user_id, title, content, topic, keywords, outline, language, style, word_count, ai_provider, status) 
             VALUES (:user_id, :title, :content, :topic, :keywords, :outline, :language, :style, :word_count, :ai_provider, :status)";
@@ -100,9 +119,16 @@ try {
         'message' => 'Article saved successfully'
     ]);
     
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("Save article error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to save article: ' . $e->getMessage()]);
+    $resp = ['error' => 'Failed to save article: ' . $e->getMessage()];
+    if (isset($diag)) { $resp['diag'] = $diag; }
+    if (isset($data) && $debug) {
+        $resp['details'] = [
+            'received_keys' => is_array($data) ? array_keys($data) : [],
+        ];
+    }
+    echo json_encode($resp);
 }
 ?>

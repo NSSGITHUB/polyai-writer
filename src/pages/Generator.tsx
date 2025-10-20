@@ -151,6 +151,7 @@ const Generator = () => {
             headers: {
               "Content-Type": "application/json",
               "Accept": "application/json",
+              "X-Debug": "1",
             },
             body: JSON.stringify(payload),
           });
