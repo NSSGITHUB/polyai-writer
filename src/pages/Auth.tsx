@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
@@ -16,11 +15,10 @@ const Auth = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
+    const user = localStorage.getItem('user');
+    if (user) {
+      navigate("/dashboard");
+    }
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -31,26 +29,35 @@ const Auth = () => {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      toast({
-        title: "登入失敗",
-        description: error.message === "Invalid login credentials" 
-          ? "電子郵件或密碼錯誤" 
-          : error.message,
-        variant: "destructive",
+    try {
+      const response = await fetch('/api/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-      setIsLoading(false);
-    } else {
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '登入失敗');
+      }
+
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+
       toast({
         title: "登入成功",
         description: "歡迎回來！",
       });
       navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "登入失敗",
+        description: error.message || "請檢查您的電子郵件和密碼",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,32 +70,46 @@ const Auth = () => {
     const password = formData.get("password") as string;
     const name = formData.get("name") as string;
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          name,
-        },
-      },
-    });
+    try {
+      const response = await fetch('/api/register.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
 
-    if (error) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '註冊失敗');
+      }
+
+      // Auto login after signup
+      const loginResponse = await fetch('/api/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const loginData = await loginResponse.json();
+      
+      if (loginResponse.ok) {
+        localStorage.setItem('user', JSON.stringify(loginData.user));
+        localStorage.setItem('token', loginData.token);
+        
+        toast({
+          title: "註冊成功",
+          description: "帳戶已創建，正在登入...",
+        });
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
       toast({
         title: "註冊失敗",
-        description: error.message === "User already registered" 
-          ? "此電子郵件已被註冊" 
-          : error.message,
+        description: error.message || "請檢查您的資料",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
-    } else {
-      toast({
-        title: "註冊成功",
-        description: "帳戶已創建，正在登入...",
-      });
-      navigate("/dashboard");
     }
   };
 

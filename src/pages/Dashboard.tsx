@@ -11,7 +11,6 @@ import {
   LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
@@ -24,61 +23,59 @@ const Dashboard = () => {
     published: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    // Check if user is logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth");
-      }
-    });
-
-    // Fetch article statistics
-    fetchStats();
+    // Check authentication
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      navigate('/auth');
+      return;
+    }
+    
+    try {
+      const user = JSON.parse(userStr);
+      setUserName(user.name || user.email);
+      fetchStats(user.id);
+    } catch (error) {
+      navigate('/auth');
+    }
   }, [navigate]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (userId: string) => {
     try {
-      const response = await fetch("https://seo.ai.com.tw/api/get-articles.php");
+      setIsLoading(true);
+      const response = await fetch(`/api/get-stats.php?user_id=${userId}`);
       const data = await response.json();
       
-      if (data.articles) {
-        const articles = data.articles;
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-        
-        const thisMonthArticles = articles.filter((article: any) => {
-          const articleDate = new Date(article.created_at);
-          return articleDate.getMonth() === currentMonth && 
-                 articleDate.getFullYear() === currentYear;
-        });
-
+      if (data.success && data.stats) {
         setStats({
-          total: data.total || 0,
-          thisMonth: thisMonthArticles.length,
-          withImages: articles.filter((a: any) => a.featured_image).length,
-          published: articles.filter((a: any) => a.status === "published").length,
+          total: data.stats.total,
+          thisMonth: data.stats.monthly,
+          withImages: data.stats.with_images,
+          published: data.stats.published,
         });
       }
     } catch (error) {
-      console.error("Failed to fetch stats:", error);
+      console.error('Failed to fetch stats:', error);
+      toast({
+        title: "載入失敗",
+        description: "無法獲取統計數據",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "登出失敗",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      navigate("/auth");
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    toast({
+      title: "已登出",
+      description: "期待您的再次光臨",
+    });
+    navigate('/auth');
   };
 
   const statsData = [
@@ -95,7 +92,7 @@ const Dashboard = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">控制台</h1>
-            <p className="text-muted-foreground">歡迎回來，開始創作精彩內容吧！</p>
+            <p className="text-muted-foreground">歡迎回來，{userName}！開始創作精彩內容吧！</p>
           </div>
           <div className="flex gap-2">
             <Button 
