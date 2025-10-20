@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Calendar, Hash, Globe, Wand2, BarChart3, Lightbulb } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Calendar, Hash, Globe, Wand2, BarChart3, Lightbulb, ImagePlus, Sparkles } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 import { analyzeSeo, getScoreColor, getScoreLabel, type SeoScore } from "@/lib/seo-analyzer";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Article {
   id: number;
@@ -39,6 +42,9 @@ export default function ArticleView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seoScore, setSeoScore] = useState<SeoScore | null>(null);
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -78,6 +84,39 @@ export default function ArticleView() {
 
     fetchArticle();
   }, [id]);
+
+  const handleGenerateImage = async () => {
+    if (!imagePrompt.trim()) {
+      toast.error("請輸入圖片描述");
+      return;
+    }
+
+    setGeneratingImage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-image', {
+        body: { 
+          prompt: imagePrompt,
+          articleId: id 
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.imageUrl) {
+        setGeneratedImage(data.imageUrl);
+        toast.success("圖片生成成功！");
+      } else {
+        throw new Error("未能獲取圖片");
+      }
+    } catch (err) {
+      console.error("生成圖片失敗:", err);
+      toast.error(err instanceof Error ? err.message : "生成圖片失敗");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -286,6 +325,75 @@ export default function ArticleView() {
             </CardContent>
           </Card>
         )}
+
+        {/* AI 圖片生成卡片 */}
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ImagePlus className="h-5 w-5 text-primary" />
+              <CardTitle>AI 圖片生成</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                圖片描述
+              </label>
+              <Textarea
+                placeholder="描述你想生成的圖片，例如：一個現代化的辦公室場景，明亮的自然光線..."
+                value={imagePrompt}
+                onChange={(e) => setImagePrompt(e.target.value)}
+                rows={3}
+                disabled={generatingImage}
+              />
+            </div>
+            
+            <Button 
+              onClick={handleGenerateImage}
+              disabled={generatingImage || !imagePrompt.trim()}
+              className="w-full"
+            >
+              {generatingImage ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-background mr-2" />
+                  生成中...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  生成圖片
+                </>
+              )}
+            </Button>
+
+            {generatedImage && (
+              <div className="mt-4 space-y-3">
+                <Separator />
+                <div className="rounded-lg overflow-hidden border">
+                  <img 
+                    src={generatedImage} 
+                    alt="AI 生成的圖片" 
+                    className="w-full h-auto"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = generatedImage;
+                      link.download = `article-${id}-image.png`;
+                      link.click();
+                    }}
+                  >
+                    下載圖片
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
