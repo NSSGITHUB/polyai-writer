@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Generator from "./pages/Generator";
 import Articles from "./pages/Articles";
 import ArticleView from "./pages/ArticleView";
+import SeoAnalyzer from "./pages/SeoAnalyzer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/generator" element={<Generator />} />
           <Route path="/articles" element={<Articles />} />
           <Route path="/articles/:id" element={<ArticleView />} />
+          <Route path="/seo-analyzer" element={<SeoAnalyzer />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

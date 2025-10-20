@@ -180,10 +180,11 @@ const Dashboard = () => {
 
           <Card 
             className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/seo-analyzer")}
           >
             <TrendingUp className="w-12 h-12 text-success mb-4 group-hover:scale-110 transition-transform" />
-            <h3 className="text-xl font-semibold mb-2">數據分析</h3>
-            <p className="text-muted-foreground">追蹤您的內容表現</p>
+            <h3 className="text-xl font-semibold mb-2">SEO 分析</h3>
+            <p className="text-muted-foreground">分析文章 SEO 表現與優化建議</p>
           </Card>
         </div>
 
