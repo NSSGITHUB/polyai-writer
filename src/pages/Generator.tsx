@@ -106,10 +106,23 @@ const Generator = () => {
         
         // 自動儲存到資料庫
         try {
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          const userId = user.id;
+          
+          if (!userId) {
+            toast({
+              title: "儲存失敗",
+              description: "請先登入才能儲存文章",
+              variant: "destructive",
+            });
+            return;
+          }
+          
           const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              userId: userId,
               title: formData.topic,
               content: fullContent,
               topic: formData.topic,
