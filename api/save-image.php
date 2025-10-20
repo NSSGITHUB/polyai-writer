@@ -28,9 +28,44 @@ try {
     $width = $input['width'] ?? 1024;
     $height = $input['height'] ?? 1024;
     
-    if (!$userId || !$prompt || !$imageUrl) {
+    if (!$userId || !$prompt) {
         http_response_code(400);
         echo json_encode(['error' => '缺少必要參數']);
+        exit();
+    }
+
+    // 建立上傳目錄
+    $uploadDir = __DIR__ . '/../uploads/images/';
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $savedImageUrl = null;
+    
+    // 如果有 base64 圖片資料，儲存為實體檔案
+    if ($imageData && strpos($imageData, 'data:image') === 0) {
+        // 解析 base64
+        preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches);
+        $imageType = $matches[1] ?? 'png';
+        $base64Data = preg_replace('/^data:image\/\w+;base64,/', '', $imageData);
+        $decodedData = base64_decode($base64Data);
+        
+        // 生成唯一檔名
+        $filename = uniqid('img_') . '_' . time() . '.' . $imageType;
+        $filepath = $uploadDir . $filename;
+        
+        // 寫入檔案
+        if (file_put_contents($filepath, $decodedData)) {
+            $savedImageUrl = '/uploads/images/' . $filename;
+        }
+    } else if ($imageUrl) {
+        // 如果只有 URL，直接使用
+        $savedImageUrl = $imageUrl;
+    }
+
+    if (!$savedImageUrl) {
+        http_response_code(400);
+        echo json_encode(['error' => '無法儲存圖片']);
         exit();
     }
 
@@ -38,15 +73,14 @@ try {
     
     $stmt = $pdo->prepare("
         INSERT INTO article_images 
-        (article_id, prompt, image_url, image_data, width, height, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        (article_id, prompt, image_url, width, height, created_at) 
+        VALUES (?, ?, ?, ?, ?, NOW())
     ");
     
     $stmt->execute([
         $articleId,
         $prompt,
-        $imageUrl,
-        $imageData,
+        $savedImageUrl,
         $width,
         $height
     ]);
@@ -56,12 +90,13 @@ try {
     echo json_encode([
         'success' => true,
         'image_id' => $imageId,
+        'image_url' => $savedImageUrl,
         'message' => '圖片保存成功'
     ]);
 
 } catch (Exception $e) {
     error_log("Save image error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => '保存圖片失敗']);
+    echo json_encode(['error' => '保存圖片失敗: ' . $e->getMessage()]);
 }
 ?>
