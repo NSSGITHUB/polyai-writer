@@ -26,22 +26,23 @@ export default function ImageGallery() {
   }, []);
 
   const loadImages = async () => {
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
       navigate('/auth');
       return;
     }
 
     try {
+      const user = JSON.parse(userStr);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/get-images.php?user_id=${userId}`
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/get-images.php?user_id=${user.id}`
       );
       const data = await response.json();
       
       if (data.success) {
         setImages(data.images);
       } else {
-        toast.error("載入圖片失敗");
+        toast.error(data.error || "載入圖片失敗");
       }
     } catch (error) {
       console.error("載入圖片錯誤:", error);

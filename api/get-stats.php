@@ -53,15 +53,20 @@ try {
     }
 
     // 獲取圖片生成統計
-    $imageStmt = $pdo->prepare("
-        SELECT COUNT(*) as total_images
-        FROM article_images ai
-        LEFT JOIN articles a ON ai.article_id = a.id
-        WHERE ai.article_id IS NULL OR a.user_id = ?
-    ");
-    $imageStmt->execute([$userId]);
-    $imageStats = $imageStmt->fetch();
-    $stats['total_images'] = (int)($imageStats['total_images'] ?? 0);
+    try {
+        $imageStmt = $pdo->prepare("
+            SELECT COUNT(*) as total_images
+            FROM article_images ai
+            LEFT JOIN articles a ON ai.article_id = a.id
+            WHERE ai.article_id IS NULL OR a.user_id = ?
+        ");
+        $imageStmt->execute([$userId]);
+        $imageStats = $imageStmt->fetch();
+        $stats['total_images'] = (int)($imageStats['total_images'] ?? 0);
+    } catch (Exception $imgError) {
+        error_log("Image stats error: " . $imgError->getMessage());
+        $stats['total_images'] = 0;
+    }
 
     echo json_encode([
         'success' => true,

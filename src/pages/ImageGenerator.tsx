@@ -40,20 +40,25 @@ export default function ImageGenerator() {
         setGeneratedImage(data.imageUrl);
         
         // 保存圖片到數據庫
-        const userId = localStorage.getItem('userId');
-        if (userId) {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
           try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/save-image.php`, {
+            const user = JSON.parse(userStr);
+            const saveResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/save-image.php`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                user_id: userId,
+                user_id: user.id,
                 article_id: articleId || null,
                 prompt: imagePrompt,
                 image_url: data.imageUrl,
                 image_data: data.imageUrl.startsWith('data:') ? data.imageUrl : null
               })
             });
+            const saveData = await saveResponse.json();
+            if (!saveData.success) {
+              console.error("保存圖片記錄失敗:", saveData.error);
+            }
           } catch (saveError) {
             console.error("保存圖片記錄失敗:", saveError);
           }
