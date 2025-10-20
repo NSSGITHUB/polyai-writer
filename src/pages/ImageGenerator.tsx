@@ -38,6 +38,27 @@ export default function ImageGenerator() {
 
       if (data?.imageUrl) {
         setGeneratedImage(data.imageUrl);
+        
+        // 保存圖片到數據庫
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          try {
+            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8888'}/api/save-image.php`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: userId,
+                article_id: articleId || null,
+                prompt: imagePrompt,
+                image_url: data.imageUrl,
+                image_data: data.imageUrl.startsWith('data:') ? data.imageUrl : null
+              })
+            });
+          } catch (saveError) {
+            console.error("保存圖片記錄失敗:", saveError);
+          }
+        }
+        
         toast.success("圖片生成成功！");
       } else {
         throw new Error("未能獲取圖片");

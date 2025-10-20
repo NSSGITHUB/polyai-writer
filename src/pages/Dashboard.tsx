@@ -31,6 +31,7 @@ const Dashboard = () => {
     thisMonth: 0,
     withImages: 0,
     published: 0,
+    totalImages: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState('');
@@ -66,6 +67,7 @@ const Dashboard = () => {
           thisMonth: data.stats.monthly,
           withImages: data.stats.with_images,
           published: data.stats.published,
+          totalImages: data.stats.total_images || 0,
         });
       }
     } catch (error) {
@@ -193,7 +195,22 @@ const Dashboard = () => {
           >
             <ImageIcon className="w-12 h-12 text-primary mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">AI 配圖</h3>
-            <p className="text-muted-foreground">為文章生成精美的 AI 配圖</p>
+            <p className="text-muted-foreground mb-3">為文章生成精美的 AI 配圖</p>
+            {!isLoading && stats.totalImages > 0 && (
+              <div className="mt-2 pt-2 border-t border-primary/10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate("/image-gallery");
+                  }}
+                >
+                  查看 {stats.totalImages} 張生成圖片
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
 
