@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
+    $userId = $data['userId'] ?? '';
     $title = $data['title'] ?? '';
     $content = $data['content'] ?? '';
     $topic = $data['topic'] ?? '';
@@ -37,13 +38,20 @@ try {
         exit;
     }
     
+    if (empty($userId)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'User ID is required']);
+        exit;
+    }
+    
     $db = getDBConnection();
     
-    $sql = "INSERT INTO articles (title, content, topic, keywords, outline, language, style, word_count, ai_provider, status) 
-            VALUES (:title, :content, :topic, :keywords, :outline, :language, :style, :word_count, :ai_provider, :status)";
+    $sql = "INSERT INTO articles (user_id, title, content, topic, keywords, outline, language, style, word_count, ai_provider, status) 
+            VALUES (:user_id, :title, :content, :topic, :keywords, :outline, :language, :style, :word_count, :ai_provider, :status)";
     
     $stmt = $db->prepare($sql);
     $stmt->execute([
+        ':user_id' => $userId,
         ':title' => $title,
         ':content' => $content,
         ':topic' => $topic,
