@@ -55,35 +55,57 @@ const Generator = () => {
     setGenerating(true);
     setResult("");
 
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-article", {
-        body: {
-          topic: formData.topic,
-          keywords: formData.keywords,
-          outline: formData.outline,
-          language: formData.language,
-          style: formData.style,
-          wordCount: Number(formData.wordCount),
-          model: formData.selectedModels.google ? "google/gemini-2.5-flash" : undefined,
-        },
-      });
+    const selectedProviders: Array<"openai" | "google" | "anthropic" | "xai"> = [];
+    if (formData.selectedModels.openai) selectedProviders.push("openai");
+    if (formData.selectedModels.google) selectedProviders.push("google");
+    if (formData.selectedModels.anthropic) selectedProviders.push("anthropic");
+    if (formData.selectedModels.xai) selectedProviders.push("xai");
 
-      if (error) {
-        const message = (error as any)?.message || "AI 產生失敗，請稍後再試。";
-        toast({
-          title: "產生失敗",
-          description: message,
-          variant: "destructive",
+    const results: string[] = [];
+
+    try {
+      for (const provider of selectedProviders) {
+        const { data, error } = await supabase.functions.invoke("generate-article", {
+          body: {
+            topic: formData.topic,
+            keywords: formData.keywords,
+            outline: formData.outline,
+            language: formData.language,
+            style: formData.style,
+            wordCount: Number(formData.wordCount),
+            provider,
+          },
         });
-        return;
+
+        if (error) {
+          const message = (error as any)?.message || `${provider} 產生失敗`;
+          toast({
+            title: "產生失敗",
+            description: message,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        const generatedText = (data as any)?.generatedText as string;
+        if (generatedText) {
+          results.push(`=== ${provider.toUpperCase()} 產生結果 ===\n\n${generatedText}\n\n`);
+        }
       }
 
-      const generatedText = (data as any)?.generatedText as string;
-      setResult(generatedText || "");
-      toast({
-        title: "文章生成成功！",
-        description: `已使用 ${selectedCount} 個AI模型生成文章`,
-      });
+      if (results.length > 0) {
+        setResult(results.join("\n" + "=".repeat(50) + "\n\n"));
+        toast({
+          title: "文章生成成功！",
+          description: `已使用 ${results.length} 個AI模型生成文章`,
+        });
+      } else {
+        toast({
+          title: "產生失敗",
+          description: "所有模型都無法產生內容",
+          variant: "destructive",
+        });
+      }
     } catch (e) {
       console.error(e);
       toast({
