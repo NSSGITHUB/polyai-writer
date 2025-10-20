@@ -63,6 +63,8 @@ try {
         $ch = curl_init('https://api.openai.com/v1/chat/completions');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $apiKey
@@ -79,9 +81,17 @@ try {
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('OpenAI cURL error: ' . $err);
+        }
         
         if ($httpCode !== 200) {
-            throw new Exception('OpenAI API error: ' . $response);
+            $body = $response;
+            curl_close($ch);
+            throw new Exception('OpenAI API error (' . $httpCode . '): ' . $body);
         }
 
         $responseData = json_decode($response, true);
@@ -99,6 +109,8 @@ try {
         $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'contents' => [['parts' => [['text' => $prompt]]]],
@@ -110,9 +122,17 @@ try {
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Google cURL error: ' . $err);
+        }
         
         if ($httpCode !== 200) {
-            throw new Exception('Google API error: ' . $response);
+            $body = $response;
+            curl_close($ch);
+            throw new Exception('Google API error (' . $httpCode . '): ' . $body);
         }
 
         $responseData = json_decode($response, true);
@@ -130,6 +150,8 @@ try {
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'x-api-key: ' . $apiKey,
@@ -145,9 +167,17 @@ try {
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Anthropic cURL error: ' . $err);
+        }
         
         if ($httpCode !== 200) {
-            throw new Exception('Anthropic API error: ' . $response);
+            $body = $response;
+            curl_close($ch);
+            throw new Exception('Anthropic API error (' . $httpCode . '): ' . $body);
         }
 
         $responseData = json_decode($response, true);
@@ -165,6 +195,8 @@ try {
         $ch = curl_init('https://api.x.ai/v1/chat/completions');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $apiKey
@@ -181,9 +213,17 @@ try {
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($response === false) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('xAI cURL error: ' . $err);
+        }
         
         if ($httpCode !== 200) {
-            throw new Exception('xAI API error: ' . $response);
+            $body = $response;
+            curl_close($ch);
+            throw new Exception('xAI API error (' . $httpCode . '): ' . $body);
         }
 
         $responseData = json_decode($response, true);
