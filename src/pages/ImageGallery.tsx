@@ -25,14 +25,25 @@ export default function ImageGallery() {
   const blobUrlsRef = useRef<string[]>([]);
 
   const dataURLToBlob = (dataUrl: string) => {
-    const [header, base64] = dataUrl.split(",");
-    const mimeMatch = header.match(/data:(.*?);base64/);
-    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-    const binary = atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
+    try {
+      if (!dataUrl || !dataUrl.includes(',')) return null;
+      const [header, base64] = dataUrl.split(",");
+      if (!base64) return null;
+      
+      const mimeMatch = header.match(/data:(.*?);base64/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      
+      // 清理 base64 字符串：移除空格和換行
+      const cleanBase64 = base64.replace(/\s/g, '');
+      const binary = atob(cleanBase64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    } catch (err) {
+      console.error("Base64 轉換失敗:", err);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -62,13 +73,11 @@ export default function ImageGallery() {
 
         const mapped: ImageRecord[] = data.images.map((img: ImageRecord) => {
           if (img.image_url && img.image_url.startsWith('data:image')) {
-            try {
-              const blob = dataURLToBlob(img.image_url);
+            const blob = dataURLToBlob(img.image_url);
+            if (blob) {
               const url = URL.createObjectURL(blob);
               blobUrlsRef.current.push(url);
               return { ...img, display_url: url };
-            } catch {
-              return img;
             }
           }
           return img;
@@ -90,9 +99,12 @@ export default function ImageGallery() {
       let href = imageUrl;
       if (imageUrl && imageUrl.startsWith('data:')) {
         const blob = dataURLToBlob(imageUrl);
-        href = URL.createObjectURL(blob);
-        // auto-revoke later
-        setTimeout(() => URL.revokeObjectURL(href), 5000);
+        if (blob) {
+          href = URL.createObjectURL(blob);
+          setTimeout(() => URL.revokeObjectURL(href), 5000);
+        } else {
+          throw new Error("無法處理圖片數據");
+        }
       }
       const link = document.createElement('a');
       link.href = href;
@@ -103,7 +115,7 @@ export default function ImageGallery() {
       toast.success("圖片下載已開始");
     } catch (error) {
       console.error("下載失敗:", error);
-      toast.error("下載失敗，請稍後再試");
+      toast.error("圖片數據損壞，無法下載");
     }
   };
 
