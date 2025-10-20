@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -102,6 +103,14 @@ const Articles = () => {
   return (
     <div className="min-h-screen bg-gradient-hero">
       <header className="container mx-auto px-4 pt-8">
+        <Button
+          onClick={() => navigate("/dashboard")}
+          variant="ghost"
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          返回儀表板
+        </Button>
         <h1 className="text-3xl font-bold">文章管理</h1>
         <p className="text-muted-foreground mt-1">查看最近生成的文章與後續操作</p>
       </header>
