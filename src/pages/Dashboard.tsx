@@ -108,7 +108,7 @@ const Dashboard = () => {
   const statsData = [
     { label: "總文章數", value: stats.total.toString(), icon: FileText, color: "text-primary-glow" },
     { label: "本月生成", value: stats.thisMonth.toString(), icon: Zap, color: "text-accent" },
-    { label: "AI配圖", value: stats.withImages.toString(), icon: ImageIcon, color: "text-success" },
+    { label: "AI 配圖", value: stats.totalImages.toString(), icon: ImageIcon, color: "text-success" },
     { label: "發布成功", value: stats.published.toString(), icon: TrendingUp, color: "text-primary" },
   ];
 
