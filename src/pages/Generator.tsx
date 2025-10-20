@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+
+const API_BASE_URL = "https://seo.ai.com.tw/api";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -65,8 +66,12 @@ const Generator = () => {
 
     try {
       for (const provider of selectedProviders) {
-        const { data, error } = await supabase.functions.invoke("generate-article", {
-          body: {
+        const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             topic: formData.topic,
             keywords: formData.keywords,
             outline: formData.outline,
@@ -74,11 +79,12 @@ const Generator = () => {
             style: formData.style,
             wordCount: Number(formData.wordCount),
             provider,
-          },
+          }),
         });
 
-        if (error) {
-          const message = (error as any)?.message || `${provider} 產生失敗`;
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const message = errorData.error || `${provider} 產生失敗`;
           toast({
             title: "產生失敗",
             description: message,
@@ -87,7 +93,8 @@ const Generator = () => {
           continue;
         }
 
-        const generatedText = (data as any)?.generatedText as string;
+        const data = await response.json();
+        const generatedText = data?.generatedText as string;
         if (generatedText) {
           results.push(`=== ${provider.toUpperCase()} 產生結果 ===\n\n${generatedText}\n\n`);
         }
