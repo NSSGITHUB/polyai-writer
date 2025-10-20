@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,43 +15,15 @@ interface ImageRecord {
   width: number;
   height: number;
   created_at: string;
-  display_url?: string;
 }
 
 export default function ImageGallery() {
   const navigate = useNavigate();
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const blobUrlsRef = useRef<string[]>([]);
-
-  const dataURLToBlob = (dataUrl: string) => {
-    try {
-      if (!dataUrl || !dataUrl.includes(',')) return null;
-      const [header, base64] = dataUrl.split(",");
-      if (!base64) return null;
-      
-      const mimeMatch = header.match(/data:(.*?);base64/);
-      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-      
-      // 清理 base64 字符串：移除空格和換行
-      const cleanBase64 = base64.replace(/\s/g, '');
-      const binary = atob(cleanBase64);
-      const len = binary.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-      return new Blob([bytes], { type: mime });
-    } catch (err) {
-      console.error("Base64 轉換失敗:", err);
-      return null;
-    }
-  };
 
   useEffect(() => {
     loadImages();
-    return () => {
-      blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
-      blobUrlsRef.current = [];
-    };
   }, []);
 
   const loadImages = async () => {
@@ -67,22 +39,7 @@ export default function ImageGallery() {
       const data = await response.json();
       
       if (data.success) {
-        // revoke previous blob urls
-        blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
-        blobUrlsRef.current = [];
-
-        const mapped: ImageRecord[] = data.images.map((img: ImageRecord) => {
-          if (img.image_url && img.image_url.startsWith('data:image')) {
-            const blob = dataURLToBlob(img.image_url);
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              blobUrlsRef.current.push(url);
-              return { ...img, display_url: url };
-            }
-          }
-          return img;
-        });
-        setImages(mapped);
+        setImages(data.images);
       } else {
         toast.error(data.error || "載入圖片失敗");
       }
@@ -95,28 +52,12 @@ export default function ImageGallery() {
   };
 
   const handleDownload = (imageUrl: string, prompt: string) => {
-    try {
-      let href = imageUrl;
-      if (imageUrl && imageUrl.startsWith('data:')) {
-        const blob = dataURLToBlob(imageUrl);
-        if (blob) {
-          href = URL.createObjectURL(blob);
-          setTimeout(() => URL.revokeObjectURL(href), 5000);
-        } else {
-          throw new Error("無法處理圖片數據");
-        }
-      }
-      const link = document.createElement('a');
-      link.href = href;
-      link.download = `${prompt.slice(0, 30).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}-${Date.now()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("圖片下載已開始");
-    } catch (error) {
-      console.error("下載失敗:", error);
-      toast.error("圖片數據損壞，無法下載");
-    }
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `${prompt.slice(0, 30).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -152,21 +93,11 @@ export default function ImageGallery() {
                 {images.map((image) => (
                   <Card key={image.id} className="overflow-hidden">
                     <div className="aspect-square bg-muted relative">
-                      {image.display_url || image.image_url ? (
-                        <img 
-                          src={image.display_url || image.image_url} 
-                          alt={image.prompt}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            console.error("圖片載入失敗:", image.id);
-                            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          無圖片數據
-                        </div>
-                      )}
+                      <img 
+                        src={image.image_url} 
+                        alt={image.prompt}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <CardContent className="p-4">
                       <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
