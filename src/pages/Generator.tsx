@@ -163,15 +163,19 @@ const Generator = () => {
           } else {
             const raw = await saveResponse.text();
             let errMsg = raw;
+            let details = '';
             try {
               const parsed = JSON.parse(raw);
               errMsg = parsed?.error || raw;
+              if (parsed?.details) {
+                details = ` | details: ${JSON.stringify(parsed.details)}`;
+              }
             } catch {}
 
-            console.error("[save-article] failed", saveResponse.status, errMsg);
+            console.error("[save-article] failed", saveResponse.status, errMsg, details);
             toast({
               title: "文章生成成功但儲存失敗",
-              description: `HTTP ${saveResponse.status} - ${String(errMsg).slice(0, 300)}`,
+              description: `HTTP ${saveResponse.status} - ${String(errMsg).slice(0, 300)}${details ? ' ' + String(details).slice(0, 400) : ''}`,
               variant: "destructive",
             });
           }
