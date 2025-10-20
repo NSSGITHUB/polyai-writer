@@ -14,6 +14,15 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
 
+interface Article {
+  id: number;
+  title: string;
+  excerpt: string;
+  ai_provider: string;
+  word_count: number;
+  created_at: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -25,6 +34,7 @@ const Dashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState('');
+  const [latestArticle, setLatestArticle] = useState<Article | null>(null);
 
   useEffect(() => {
     // Check authentication
@@ -38,6 +48,7 @@ const Dashboard = () => {
       const user = JSON.parse(userStr);
       setUserName(user.name || user.email);
       fetchStats(user.id);
+      fetchLatestArticle();
     } catch (error) {
       navigate('/auth');
     }
@@ -66,6 +77,19 @@ const Dashboard = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchLatestArticle = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/get-articles.php?page=1&limit=1`);
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        setLatestArticle(data.data[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch latest article:', error);
     }
   };
 
@@ -165,18 +189,57 @@ const Dashboard = () => {
 
         {/* Recent Articles */}
         <Card className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
-          <h2 className="text-2xl font-semibold mb-4">最近的文章</h2>
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="mb-4">還沒有任何文章</p>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">最近的文章</h2>
             <Button 
               variant="outline"
+              size="sm"
               className="border-primary/30"
-              onClick={() => navigate("/generator")}
+              onClick={() => navigate("/articles")}
             >
-              立即創建第一篇文章
+              查看全部
             </Button>
           </div>
+          
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">載入中...</div>
+          ) : latestArticle ? (
+            <Card className="p-4 bg-background/50">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-2">{latestArticle.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {latestArticle.excerpt}...
+                  </p>
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>🤖 {latestArticle.ai_provider}</span>
+                    <span>📝 {latestArticle.word_count} 字</span>
+                    <span>📅 {new Date(latestArticle.created_at).toLocaleDateString("zh-TW")}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-4"
+                  onClick={() => navigate(`/articles/${latestArticle.id}`)}
+                >
+                  檢視
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="mb-4">還沒有任何文章</p>
+              <Button 
+                variant="outline"
+                className="border-primary/30"
+                onClick={() => navigate("/generator")}
+              >
+                立即創建第一篇文章
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
