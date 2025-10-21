@@ -47,26 +47,47 @@ serve(async (req) => {
       );
     }
 
-    const prompt = `【重要：字數要求】請以${language}撰寫一篇完整的 SEO 文章，主題為：「${topic}」。\n\n` +
-      `【關鍵要求】文章總字數必須達到 ${wordCount} 字，這是最低要求，不可少於此字數！\n` +
-      `請注意：${wordCount} 字是必須達到的最低字數，請確保文章內容充實到足以達到此字數要求。\n\n` +
-      `【風格要求】文章風格為「${style}」。\n\n` +
-      (keywords ? `【關鍵字】請自然融入以下關鍵字（勿堆疊）：${keywords}\n\n` : "") +
-      (outline ? `【大綱參考】可依照此大綱調整結構：\n${outline}\n\n` : "") +
-      `【內容要求】\n` +
-      `1. 文章結構：開頭引言、多個主體段落（每段200-400字）、結尾總結\n` +
-      `2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據、案例和詳細解釋\n` +
-      `3. 段落安排：根據字數要求調整段落數量，確保每段都有實質內容\n` +
-      `   - 1000字以下：至少5段\n` +
-      `   - 2000-4000字：至少8-10段\n` +
-      `   - 5000字以上：至少12-15段\n` +
-      `4. 開頭段落：清楚說明文章主題和重點（200-300字）\n` +
-      `5. 結尾段落：提供完整總結與明確的行動呼籲（200-300字）\n` +
-      `6. 語氣風格：自然流暢、易於閱讀、避免重複贅詞\n` +
-      `7. 格式要求：使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等\n` +
-      `8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明、例證和詳細闡述\n` +
-      `9. 字數檢查：寫作時請持續確認字數，確保最終達到 ${wordCount} 字的要求\n\n` +
-      `【最後強調】文章必須達到 ${wordCount} 字，這是強制要求。請寫得詳細充實，不要過於簡短或概括。`;
+    // 根據不同提供商調整prompt
+    const buildPrompt = (provider: string) => {
+      let basePrompt = `【重要：字數要求】請以${language}撰寫一篇完整的 SEO 文章，主題為：「${topic}」。\n\n`;
+      
+      // 針對不同AI調整字數要求說明
+      if (provider === 'google') {
+        basePrompt += `【嚴格字數限制】文章總字數必須精確控制在 ${wordCount} 字左右，誤差範圍在±10%以內。絕對不可超過 ${Math.floor(wordCount * 1.15)} 字！\n`;
+        basePrompt += `請特別注意：寫作時必須嚴格控制篇幅，達到目標字數後立即結束，不要過度延伸內容。\n\n`;
+      } else {
+        basePrompt += `【關鍵要求】文章總字數必須達到 ${wordCount} 字，這是最低要求，不可少於此字數！\n`;
+        basePrompt += `請注意：${wordCount} 字是必須達到的最低字數，請確保文章內容充實到足以達到此字數要求。\n\n`;
+      }
+      
+      basePrompt += `【風格要求】文章風格為「${style}」。\n\n`;
+      basePrompt += keywords ? `【關鍵字】請自然融入以下關鍵字（勿堆疊）：${keywords}\n\n` : "";
+      basePrompt += outline ? `【大綱參考】可依照此大綱調整結構：\n${outline}\n\n` : "";
+      basePrompt += `【內容要求】\n` +
+        `1. 文章結構：開頭引言、多個主體段落（每段200-400字）、結尾總結\n` +
+        `2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據、案例和詳細解釋\n` +
+        `3. 段落安排：根據字數要求調整段落數量，確保每段都有實質內容\n` +
+        `   - 1000字以下：至少5段\n` +
+        `   - 2000-4000字：至少8-10段\n` +
+        `   - 5000字以上：至少12-15段\n` +
+        `4. 開頭段落：清楚說明文章主題和重點（200-300字）\n` +
+        `5. 結尾段落：提供完整總結與明確的行動呼籲（200-300字）\n` +
+        `6. 語氣風格：自然流暢、易於閱讀、避免重複贅詞\n` +
+        `7. 格式要求：使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等\n` +
+        `8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明、例證和詳細闡述\n` +
+        `9. 字數檢查：寫作時請持續確認字數，確保最終達到目標字數\n\n`;
+      
+      // 針對不同AI的最後強調
+      if (provider === 'google') {
+        basePrompt += `【最後強調】文章必須控制在 ${wordCount} 字左右（±10%），不要過度擴充內容！`;
+      } else {
+        basePrompt += `【最後強調】文章必須完整達到 ${wordCount} 字，這是強制要求。請寫得詳細充實，不要過於簡短或概括。`;
+      }
+      
+      return basePrompt;
+    };
+
+    const prompt = buildPrompt(provider);
 
     let generatedText = "";
 
@@ -89,10 +110,10 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "gpt-5-mini-2025-08-07",
           messages: [
-            { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements." },
+            { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements. Make sure to write fully detailed content to reach the target word count." },
             { role: "user", content: prompt },
           ],
-          max_completion_tokens: Math.min(Math.ceil(wordCount * 4), 16000),
+          max_completion_tokens: Math.min(Math.ceil(wordCount * 5), 16000),
         }),
       });
 
@@ -128,7 +149,7 @@ serve(async (req) => {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: Math.ceil(wordCount * 4),
+              maxOutputTokens: Math.min(Math.ceil(wordCount * 2.5), 8000),
             },
           }),
         },
