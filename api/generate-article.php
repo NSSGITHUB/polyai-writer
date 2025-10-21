@@ -70,14 +70,25 @@ function cleanMarkdown($text) {
 }
 
 // 建構 prompt
-$prompt = "請以{$language}撰寫一篇約 {$wordCount} 字、風格為「{$style}」的 SEO 文章，主題為：「{$topic}」。\n\n";
+$prompt = "【重要】請以{$language}撰寫一篇完整的 SEO 文章，主題為：「{$topic}」。\n\n";
+$prompt .= "【字數要求】文章總字數必須達到 {$wordCount} 字以上，請確實達到此字數要求。\n\n";
+$prompt .= "【風格要求】文章風格為「{$style}」。\n\n";
 if (!empty($keywords)) {
-    $prompt .= "請自然融入以下關鍵字（勿堆疊）：{$keywords}\n";
+    $prompt .= "【關鍵字】請自然融入以下關鍵字（勿堆疊）：{$keywords}\n\n";
 }
 if (!empty($outline)) {
-    $prompt .= "可依照此大綱調整結構：\n{$outline}\n\n";
+    $prompt .= "【大綱參考】可依照此大綱調整結構：\n{$outline}\n\n";
 }
-$prompt .= "要求：\n- 以清楚的段落結構呈現，使用清楚的標題和段落分隔。\n- 提供具體事例或資料點，避免空泛。\n- 開頭 1 段說明重點，結尾提供總結與行動呼籲。\n- 語氣自然、易讀、避免重複贅詞。\n- 請使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等。";
+$prompt .= "【內容要求】\n";
+$prompt .= "1. 文章結構：開頭引言、多個主體段落（每段150-300字）、結尾總結\n";
+$prompt .= "2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據或案例\n";
+$prompt .= "3. 段落安排：至少包含5-8個主要段落，每段都要有實質內容\n";
+$prompt .= "4. 開頭段落：清楚說明文章主題和重點（150字以上）\n";
+$prompt .= "5. 結尾段落：提供完整總結與明確的行動呼籲（150字以上）\n";
+$prompt .= "6. 語氣風格：自然流暢、易於閱讀、避免重複贅詞\n";
+$prompt .= "7. 格式要求：使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等\n";
+$prompt .= "8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明和例證\n\n";
+$prompt .= "【再次提醒】請務必確保文章達到 {$wordCount} 字以上，內容要充實完整，不要過於簡短。";
 
 $generatedText = '';
 
@@ -107,7 +118,7 @@ try {
                 ['role' => 'system', 'content' => 'You are a helpful SEO content writer.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => (int)($wordCount * 1.5),
+            'max_tokens' => (int)($wordCount * 2.5),
             'temperature' => 0.7
         ]));
 
@@ -149,7 +160,7 @@ try {
             'contents' => [['parts' => [['text' => $prompt]]]],
             'generationConfig' => [
                 'temperature' => 0.7,
-                'maxOutputTokens' => (int)($wordCount * 1.5)
+                'maxOutputTokens' => (int)($wordCount * 2.5)
             ]
         ]));
 
@@ -193,7 +204,7 @@ try {
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'model' => 'claude-3-5-sonnet-20241022',
-            'max_tokens' => (int)($wordCount * 1.5),
+            'max_tokens' => (int)($wordCount * 2.5),
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ]
@@ -242,7 +253,7 @@ try {
                 ['role' => 'system', 'content' => 'You are a helpful SEO content writer.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => (int)($wordCount * 1.5),
+            'max_tokens' => (int)($wordCount * 2.5),
             'temperature' => 0.7
         ]));
 
