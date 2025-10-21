@@ -42,9 +42,9 @@ try {
         // 轉義單引號
         $escapedValue = str_replace("'", "\\'", $keyValue);
         
-        // 使用正則表達式替換對應的 define 行
-        $pattern = "/define\('" . $keyName . "',\s*'[^']*'\);/";
-        $replacement = "define('" . $keyName . "', '" . $escapedValue . "');";
+        // 使用正則表達式替換對應的 define 行（包含可能的註解）
+        $pattern = "/define\('" . $keyName . "',\s*'[^']*'\);(\s*\/\/[^\n]*)?/";
+        $replacement = "define('" . $keyName . "', '" . $escapedValue . "');$1";
         
         if (preg_match($pattern, $content)) {
             $content = preg_replace($pattern, $replacement, $content);
