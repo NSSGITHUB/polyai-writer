@@ -407,7 +407,7 @@ const Generator = () => {
                   {article.articleId && (
                     <Button
                       variant="outline"
-                      onClick={() => navigate(`/article/${article.articleId}`)}
+                      onClick={() => navigate(`/articles/${article.articleId}`)}
                     >
                       查看詳情
                     </Button>
