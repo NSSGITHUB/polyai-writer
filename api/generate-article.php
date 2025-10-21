@@ -118,13 +118,12 @@ try {
             'Authorization: Bearer ' . $apiKey
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'model' => 'gpt-4o-mini',
+            'model' => 'gpt-5-2025-08-07',
             'messages' => [
                 ['role' => 'system', 'content' => 'You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => min((int)($wordCount * 4), 16000),
-            'temperature' => 0.7
+            'max_completion_tokens' => min((int)($wordCount * 4), 16000)
         ]));
 
         $response = curl_exec($ch);
@@ -155,7 +154,7 @@ try {
             throw new Exception('GOOGLE_API_KEY not configured');
         }
 
-        $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}");
+        $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);

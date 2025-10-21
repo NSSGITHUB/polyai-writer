@@ -87,13 +87,12 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-5-2025-08-07",
           messages: [
             { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements." },
             { role: "user", content: prompt },
           ],
-          max_tokens: Math.min(Math.ceil(wordCount * 4), 16000),
-          temperature: 0.7,
+          max_completion_tokens: Math.min(Math.ceil(wordCount * 4), 16000),
         }),
       });
 
@@ -121,7 +120,7 @@ serve(async (req) => {
       }
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
