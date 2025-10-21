@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL = "https://seo.ai.com.tw/api";
+const API_BASE_URL = "https://autowriter.ai.com.tw/api";
 
 interface Article {
   id: number;
