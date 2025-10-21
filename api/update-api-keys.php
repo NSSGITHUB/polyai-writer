@@ -19,9 +19,13 @@ try {
     $keys = $input['keys'];
     $configFile = __DIR__ . '/db-config.php';
     
-    // 讀取現有的設定檔
+    // 確保有寫入權限
     if (!file_exists($configFile)) {
-        throw new Exception('設定檔不存在');
+        throw new Exception('設定檔不存在: ' . $configFile);
+    }
+    
+    if (!is_writable($configFile)) {
+        throw new Exception('設定檔無寫入權限，請檢查檔案權限');
     }
     
     $content = file_get_contents($configFile);
