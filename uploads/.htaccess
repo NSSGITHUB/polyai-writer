@@ -1,9 +1,0 @@
-Options -Indexes
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Cache-Control "max-age=31536000, public"
-</IfModule>
-
-<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
-    SetHandler default-handler
-</FilesMatch>
