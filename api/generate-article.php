@@ -185,23 +185,8 @@ try {
         curl_close($ch);
     }
 
-    // xAI Grok or Manus AI
-    elseif ($provider === 'xai' || $provider === 'manus') {
-        $apiKey = XAI_API_KEY;
-        if (empty($apiKey)) {
-            throw new Exception('XAI_API_KEY not configured');
-        }
-
-    // Manus AI
-    elseif ($provider === 'manus') {
-        $apiKey = $providerConfig['api_key'];
-        $apiUrl = $providerConfig['api_endpoint'] ?: 'https://api.manus.ai/v1/chat/completions';
-        if (empty($apiKey)) {
-            throw new Exception('MANUS_API_KEY not configured');
-        }
-
-    // xAI Grok or Manus AI
-    elseif ($provider === 'xai' || $provider === 'manus') {
+    // xAI Grok
+    elseif ($provider === 'xai') {
         $apiKey = XAI_API_KEY;
         if (empty($apiKey)) {
             throw new Exception('XAI_API_KEY not configured');
