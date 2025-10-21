@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Users,
   Zap,
-  LogOut
+  LogOut,
+  Key
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -161,7 +162,7 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card 
             className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
             onClick={() => navigate("/generator")}
@@ -211,6 +212,15 @@ const Dashboard = () => {
                 </Button>
               </div>
             )}
+          </Card>
+
+          <Card 
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/key-management")}
+          >
+            <Key className="w-12 h-12 text-warning mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">金鑰管理</h3>
+            <p className="text-muted-foreground">管理 AI 提供者 API 金鑰</p>
           </Card>
         </div>
 
