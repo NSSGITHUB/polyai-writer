@@ -50,12 +50,38 @@ $prompt .= "要求：\n- 以清楚的小標題與段落結構呈現（使用 H2/
 $generatedText = '';
 
 try {
-    // Load API keys from config
+    // Load database connection and get provider config
     require_once __DIR__ . '/db-config.php';
+    
+    // 從資料庫獲取 AI 提供者設定
+    function getProviderConfig($pdo, $providerName) {
+        $stmt = $pdo->prepare("
+            SELECT api_key, api_endpoint, model_name, is_enabled 
+            FROM ai_providers 
+            WHERE provider_name = :provider_name
+        ");
+        $stmt->execute(['provider_name' => $providerName]);
+        return $stmt->fetch();
+    }
+    
+    $pdo = getDBConnection();
+    $providerConfig = getProviderConfig($pdo, $provider);
+    
+    if (!$providerConfig) {
+        throw new Exception("未知的 AI 提供者: $provider");
+    }
+    
+    if ($providerConfig['is_enabled'] != 1) {
+        throw new Exception("AI 提供者 $provider 已被停用");
+    }
+    
+    if (empty($providerConfig['api_key'])) {
+        throw new Exception("AI 提供者 $provider 的 API 金鑰未設定，請聯繫管理員");
+    }
     
     // OpenAI GPT
     if ($provider === 'openai') {
-        $apiKey = OPENAI_API_KEY;
+        $apiKey = $providerConfig['api_key'];
         if (empty($apiKey)) {
             throw new Exception('OPENAI_API_KEY not configured');
         }
@@ -101,7 +127,7 @@ try {
 
     // Google Gemini
     elseif ($provider === 'google') {
-        $apiKey = GOOGLE_API_KEY;
+        $apiKey = $providerConfig['api_key'];
         if (empty($apiKey)) {
             throw new Exception('GOOGLE_API_KEY not configured');
         }
@@ -142,7 +168,7 @@ try {
 
     // Anthropic Claude
     elseif ($provider === 'anthropic') {
-        $apiKey = ANTHROPIC_API_KEY;
+        $apiKey = $providerConfig['api_key'];
         if (empty($apiKey)) {
             throw new Exception('ANTHROPIC_API_KEY not configured');
         }
@@ -185,14 +211,23 @@ try {
         curl_close($ch);
     }
 
-    // xAI Grok
-    elseif ($provider === 'xai') {
-        $apiKey = XAI_API_KEY;
+    // Manus AI
+    elseif ($provider === 'manus') {
+        $apiKey = $providerConfig['api_key'];
+        $apiUrl = $providerConfig['api_endpoint'] ?: 'https://api.manus.ai/v1/chat/completions';
         if (empty($apiKey)) {
             throw new Exception('XAI_API_KEY not configured');
         }
 
-        $ch = curl_init('https://api.x.ai/v1/chat/completions');
+    // Manus AI
+    elseif ($provider === 'manus') {
+        $apiKey = $providerConfig['api_key'];
+        $apiUrl = $providerConfig['api_endpoint'] ?: 'https://api.manus.ai/v1/chat/completions';
+        if (empty($apiKey)) {
+            throw new Exception('MANUS_API_KEY not configured');
+        }
+
+        $ch = curl_init($apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
@@ -202,7 +237,7 @@ try {
             'Authorization: Bearer ' . $apiKey
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'model' => 'grok-beta',
+            'model' => $providerConfig['model_name'] ?: 'gpt-4',
             'messages' => [
                 ['role' => 'system', 'content' => 'You are a helpful SEO content writer.'],
                 ['role' => 'user', 'content' => $prompt]
@@ -217,13 +252,13 @@ try {
         if ($response === false) {
             $err = curl_error($ch);
             curl_close($ch);
-            throw new Exception('xAI cURL error: ' . $err);
+            throw new Exception('Manus cURL error: ' . $err);
         }
         
         if ($httpCode !== 200) {
             $body = $response;
             curl_close($ch);
-            throw new Exception('xAI API error (' . $httpCode . '): ' . $body);
+            throw new Exception('Manus API error (' . $httpCode . '): ' . $body);
         }
 
         $responseData = json_decode($response, true);

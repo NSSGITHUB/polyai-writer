@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ const Generator = () => {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string>("");
+  const [providers, setProviders] = useState<any[]>([]);
 
   // 需登入方可使用
   if (!localStorage.getItem("user")) {
@@ -30,13 +31,38 @@ const Generator = () => {
     language: "zh-TW",
     style: "professional",
     wordCount: "1000",
-    selectedModels: {
-      openai: true,
-      google: false,
-      anthropic: false,
-      xai: false,
-    },
+    selectedModels: {} as Record<string, boolean>,
   });
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const fetchProviders = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/get-ai-providers.php`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const enabledProviders = data.providers.filter((p: any) => p.is_enabled === 1);
+        setProviders(enabledProviders);
+        
+        // 初始化 selectedModels，第一個為預設選中
+        const initialSelection: Record<string, boolean> = {};
+        enabledProviders.forEach((p: any, index: number) => {
+          initialSelection[p.provider_name] = index === 0;
+        });
+        setFormData(prev => ({ ...prev, selectedModels: initialSelection }));
+      }
+    } catch (error) {
+      console.error("獲取提供者失敗:", error);
+      toast({
+        title: "載入失敗",
+        description: "無法載入 AI 提供者列表",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleGenerate = async () => {
     if (!formData.topic) {
@@ -61,11 +87,9 @@ const Generator = () => {
     setGenerating(true);
     setResult("");
 
-    const selectedProviders: Array<"openai" | "google" | "anthropic" | "xai"> = [];
-    if (formData.selectedModels.openai) selectedProviders.push("openai");
-    if (formData.selectedModels.google) selectedProviders.push("google");
-    if (formData.selectedModels.anthropic) selectedProviders.push("anthropic");
-    if (formData.selectedModels.xai) selectedProviders.push("xai");
+    const selectedProviders = Object.entries(formData.selectedModels)
+      .filter(([_, checked]) => checked)
+      .map(([provider]) => provider);
 
     const results: string[] = [];
 
@@ -334,80 +358,36 @@ const Generator = () => {
             </p>
 
             <div className="space-y-4">
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                <Checkbox
-                  id="openai"
-                  checked={formData.selectedModels.openai}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      selectedModels: { ...formData.selectedModels, openai: !!checked },
-                    })
-                  }
-                />
-                <Label htmlFor="openai" className="flex-1 cursor-pointer">
-                  <div className="font-medium">OpenAI GPT</div>
-                  <div className="text-xs text-muted-foreground">最受歡迎的AI模型</div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                <Checkbox
-                  id="google"
-                  checked={formData.selectedModels.google}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      selectedModels: { ...formData.selectedModels, google: !!checked },
-                    })
-                  }
-                />
-                <Label htmlFor="google" className="flex-1 cursor-pointer">
-                  <div className="font-medium">Google Gemini</div>
-                  <div className="text-xs text-muted-foreground">強大的多模態模型</div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                <Checkbox
-                  id="anthropic"
-                  checked={formData.selectedModels.anthropic}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      selectedModels: { ...formData.selectedModels, anthropic: !!checked },
-                    })
-                  }
-                />
-                <Label htmlFor="anthropic" className="flex-1 cursor-pointer">
-                  <div className="font-medium">Anthropic Claude</div>
-                  <div className="text-xs text-muted-foreground">擅長長文本理解</div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                <Checkbox
-                  id="xai"
-                  checked={formData.selectedModels.xai}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      selectedModels: { ...formData.selectedModels, xai: !!checked },
-                    })
-                  }
-                />
-                <Label htmlFor="xai" className="flex-1 cursor-pointer">
-                  <div className="font-medium">xAI Grok</div>
-                  <div className="text-xs text-muted-foreground">最新AI技術</div>
-                </Label>
-        </div>
-        {result && (
-          <Card className="mt-6 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
-            <h3 className="text-xl font-semibold mb-4">生成結果</h3>
-            <Textarea readOnly value={result} className="min-h-[300px]" />
-          </Card>
-        )}
-      </div>
+              {providers.map((provider) => (
+                <div 
+                  key={provider.provider_name}
+                  className="flex items-center space-x-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors"
+                >
+                  <Checkbox
+                    id={provider.provider_name}
+                    checked={formData.selectedModels[provider.provider_name] || false}
+                    onCheckedChange={(checked) =>
+                      setFormData({
+                        ...formData,
+                        selectedModels: { 
+                          ...formData.selectedModels, 
+                          [provider.provider_name]: !!checked 
+                        },
+                      })
+                    }
+                  />
+                  <Label htmlFor={provider.provider_name} className="flex-1 cursor-pointer">
+                    <div className="font-medium">{provider.provider_label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {provider.description}
+                      {provider.has_api_key === 0 && (
+                        <span className="text-destructive ml-1">（未設定金鑰）</span>
+                      )}
+                    </div>
+                  </Label>
+                </div>
+              ))}
+            </div>
 
             <Button
               className="w-full mt-6 bg-gradient-primary hover:shadow-glow"
@@ -420,6 +400,13 @@ const Generator = () => {
             </Button>
           </Card>
         </div>
+
+        {result && (
+          <Card className="mt-6 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
+            <h3 className="text-xl font-semibold mb-4">生成結果</h3>
+            <Textarea readOnly value={result} className="min-h-[300px]" />
+          </Card>
+        )}
       </div>
     </div>
   );

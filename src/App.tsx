@@ -12,6 +12,7 @@ import ArticleView from "./pages/ArticleView";
 import SeoAnalyzer from "./pages/SeoAnalyzer";
 import ImageGenerator from "./pages/ImageGenerator";
 import ImageGallery from "./pages/ImageGallery";
+import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/seo-analyzer" element={<SeoAnalyzer />} />
           <Route path="/image-generator" element={<ImageGenerator />} />
           <Route path="/image-gallery" element={<ImageGallery />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
