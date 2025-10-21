@@ -70,8 +70,9 @@ function cleanMarkdown($text) {
 }
 
 // 建構 prompt
-$prompt = "【重要】請以{$language}撰寫一篇完整的 SEO 文章，主題為：「{$topic}」。\n\n";
-$prompt .= "【字數要求】文章總字數必須達到 {$wordCount} 字以上，請確實達到此字數要求。\n\n";
+$prompt = "【重要：字數要求】請以{$language}撰寫一篇完整的 SEO 文章，主題為：「{$topic}」。\n\n";
+$prompt .= "【關鍵要求】文章總字數必須達到 {$wordCount} 字，這是最低要求，不可少於此字數！\n";
+$prompt .= "請注意：{$wordCount} 字是必須達到的最低字數，請確保文章內容充實到足以達到此字數要求。\n\n";
 $prompt .= "【風格要求】文章風格為「{$style}」。\n\n";
 if (!empty($keywords)) {
     $prompt .= "【關鍵字】請自然融入以下關鍵字（勿堆疊）：{$keywords}\n\n";
@@ -80,15 +81,19 @@ if (!empty($outline)) {
     $prompt .= "【大綱參考】可依照此大綱調整結構：\n{$outline}\n\n";
 }
 $prompt .= "【內容要求】\n";
-$prompt .= "1. 文章結構：開頭引言、多個主體段落（每段150-300字）、結尾總結\n";
-$prompt .= "2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據或案例\n";
-$prompt .= "3. 段落安排：至少包含5-8個主要段落，每段都要有實質內容\n";
-$prompt .= "4. 開頭段落：清楚說明文章主題和重點（150字以上）\n";
-$prompt .= "5. 結尾段落：提供完整總結與明確的行動呼籲（150字以上）\n";
+$prompt .= "1. 文章結構：開頭引言、多個主體段落（每段200-400字）、結尾總結\n";
+$prompt .= "2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據、案例和詳細解釋\n";
+$prompt .= "3. 段落安排：根據字數要求調整段落數量，確保每段都有實質內容\n";
+$prompt .= "   - 1000字以下：至少5段\n";
+$prompt .= "   - 2000-4000字：至少8-10段\n";
+$prompt .= "   - 5000字以上：至少12-15段\n";
+$prompt .= "4. 開頭段落：清楚說明文章主題和重點（200-300字）\n";
+$prompt .= "5. 結尾段落：提供完整總結與明確的行動呼籲（200-300字）\n";
 $prompt .= "6. 語氣風格：自然流暢、易於閱讀、避免重複贅詞\n";
 $prompt .= "7. 格式要求：使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等\n";
-$prompt .= "8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明和例證\n\n";
-$prompt .= "【再次提醒】請務必確保文章達到 {$wordCount} 字以上，內容要充實完整，不要過於簡短。";
+$prompt .= "8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明、例證和詳細闡述\n";
+$prompt .= "9. 字數檢查：寫作時請持續確認字數，確保最終達到 {$wordCount} 字的要求\n\n";
+$prompt .= "【最後強調】文章必須達到 {$wordCount} 字，這是強制要求。請寫得詳細充實，不要過於簡短或概括。";
 
 $generatedText = '';
 
@@ -115,10 +120,10 @@ try {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'model' => 'gpt-4o-mini',
             'messages' => [
-                ['role' => 'system', 'content' => 'You are a helpful SEO content writer.'],
+                ['role' => 'system', 'content' => 'You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => (int)($wordCount * 2.5),
+            'max_tokens' => min((int)($wordCount * 4), 16000),
             'temperature' => 0.7
         ]));
 
@@ -160,7 +165,7 @@ try {
             'contents' => [['parts' => [['text' => $prompt]]]],
             'generationConfig' => [
                 'temperature' => 0.7,
-                'maxOutputTokens' => (int)($wordCount * 2.5)
+                'maxOutputTokens' => (int)($wordCount * 4)
             ]
         ]));
 
@@ -204,7 +209,7 @@ try {
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'model' => 'claude-3-5-sonnet-20241022',
-            'max_tokens' => (int)($wordCount * 2.5),
+            'max_tokens' => (int)($wordCount * 4),
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ]
@@ -250,10 +255,10 @@ try {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'model' => 'grok-beta',
             'messages' => [
-                ['role' => 'system', 'content' => 'You are a helpful SEO content writer.'],
+                ['role' => 'system', 'content' => 'You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => (int)($wordCount * 2.5),
+            'max_tokens' => (int)($wordCount * 4),
             'temperature' => 0.7
         ]));
 
