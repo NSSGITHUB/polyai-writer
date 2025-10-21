@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Calendar, Hash, Globe, Wand2, BarChart3, Lightbulb } from "lucide-react";
+import { ArrowLeft, Calendar, Hash, Globe, Wand2, BarChart3, Lightbulb, FileDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 import { analyzeSeo, getScoreColor, getScoreLabel, type SeoScore } from "@/lib/seo-analyzer";
+import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 
 interface Article {
   id: number;
@@ -39,6 +42,81 @@ export default function ArticleView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seoScore, setSeoScore] = useState<SeoScore | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadAsWord = async () => {
+    if (!article) return;
+    
+    setDownloading(true);
+    try {
+      const paragraphs = article.content.split('\n').filter(p => p.trim()).map(text => 
+        new Paragraph({
+          children: [new TextRun(text)],
+          spacing: { after: 200 }
+        })
+      );
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              text: article.title,
+              heading: HeadingLevel.HEADING_1,
+              spacing: { after: 400 }
+            }),
+            ...paragraphs
+          ]
+        }]
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${article.title}.docx`);
+    } catch (err) {
+      console.error("Word 下載失敗:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadAsPDF = () => {
+    if (!article) return;
+    
+    setDownloading(true);
+    try {
+      const doc = new jsPDF();
+      
+      // 設置中文字體 (使用內建字體)
+      doc.setFont("helvetica");
+      
+      // 標題
+      doc.setFontSize(20);
+      const title = article.title;
+      const titleLines = doc.splitTextToSize(title, 170);
+      doc.text(titleLines, 20, 20);
+      
+      // 內容
+      doc.setFontSize(12);
+      const content = article.content;
+      const lines = doc.splitTextToSize(content, 170);
+      
+      let y = 40;
+      lines.forEach((line: string) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, 20, y);
+        y += 7;
+      });
+      
+      doc.save(`${article.title}.pdf`);
+    } catch (err) {
+      console.error("PDF 下載失敗:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) {
@@ -112,14 +190,34 @@ export default function ArticleView() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto py-8 px-4">
-        <Button
-          onClick={() => navigate("/articles")}
-          variant="ghost"
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          返回文章列表
-        </Button>
+        <div className="flex justify-between items-center mb-6">
+          <Button
+            onClick={() => navigate("/articles")}
+            variant="ghost"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回文章列表
+          </Button>
+          
+          <div className="flex gap-2">
+            <Button
+              onClick={downloadAsWord}
+              disabled={downloading}
+              variant="outline"
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              下載 Word
+            </Button>
+            <Button
+              onClick={downloadAsPDF}
+              disabled={downloading}
+              variant="outline"
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              下載 PDF
+            </Button>
+          </div>
+        </div>
 
         <Card>
           <CardHeader>

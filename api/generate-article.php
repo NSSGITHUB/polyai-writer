@@ -37,6 +37,38 @@ if (empty($provider)) {
     exit;
 }
 
+// 清理 Markdown 特殊符號的函數
+function cleanMarkdown($text) {
+    // 移除 Markdown 標題符號 (##, ###)
+    $text = preg_replace('/^#{1,6}\s+/m', '', $text);
+    
+    // 移除粗體和斜體符號 (**, *, __, _)
+    $text = preg_replace('/(\*\*|__)(.*?)\1/', '$2', $text);
+    $text = preg_replace('/(\*|_)(.*?)\1/', '$2', $text);
+    
+    // 移除列表符號 (-, *, +)
+    $text = preg_replace('/^[\*\-\+]\s+/m', '', $text);
+    
+    // 移除連結語法 [text](url)
+    $text = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $text);
+    
+    // 移除圖片語法 ![alt](url)
+    $text = preg_replace('/!\[([^\]]*)\]\([^\)]+\)/', '', $text);
+    
+    // 移除程式碼區塊符號 (```, `)
+    $text = preg_replace('/```[a-z]*\n/', '', $text);
+    $text = str_replace('```', '', $text);
+    $text = preg_replace('/`([^`]+)`/', '$1', $text);
+    
+    // 移除引用符號 (>)
+    $text = preg_replace('/^>\s+/m', '', $text);
+    
+    // 移除水平線 (---, ***)
+    $text = preg_replace('/^(\-{3,}|\*{3,}|_{3,})$/m', '', $text);
+    
+    return trim($text);
+}
+
 // 建構 prompt
 $prompt = "請以{$language}撰寫一篇約 {$wordCount} 字、風格為「{$style}」的 SEO 文章，主題為：「{$topic}」。\n\n";
 if (!empty($keywords)) {
@@ -45,7 +77,7 @@ if (!empty($keywords)) {
 if (!empty($outline)) {
     $prompt .= "可依照此大綱調整結構：\n{$outline}\n\n";
 }
-$prompt .= "要求：\n- 以清楚的小標題與段落結構呈現（使用 H2/H3 的層次感）。\n- 提供具體事例或資料點，避免空泛。\n- 開頭 1 段說明重點，結尾提供總結與行動呼籲。\n- 語氣自然、易讀、避免重複贅詞。";
+$prompt .= "要求：\n- 以清楚的段落結構呈現，使用清楚的標題和段落分隔。\n- 提供具體事例或資料點，避免空泛。\n- 開頭 1 段說明重點，結尾提供總結與行動呼籲。\n- 語氣自然、易讀、避免重複贅詞。\n- 請使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等。";
 
 $generatedText = '';
 
@@ -96,6 +128,7 @@ try {
 
         $responseData = json_decode($response, true);
         $generatedText = $responseData['choices'][0]['message']['content'] ?? '';
+        $generatedText = cleanMarkdown($generatedText);
         curl_close($ch);
     }
 
@@ -137,6 +170,7 @@ try {
 
         $responseData = json_decode($response, true);
         $generatedText = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        $generatedText = cleanMarkdown($generatedText);
         curl_close($ch);
     }
 
@@ -182,6 +216,7 @@ try {
 
         $responseData = json_decode($response, true);
         $generatedText = $responseData['content'][0]['text'] ?? '';
+        $generatedText = cleanMarkdown($generatedText);
         curl_close($ch);
     }
 
@@ -228,6 +263,7 @@ try {
 
         $responseData = json_decode($response, true);
         $generatedText = $responseData['choices'][0]['message']['content'] ?? '';
+        $generatedText = cleanMarkdown($generatedText);
         curl_close($ch);
     }
 

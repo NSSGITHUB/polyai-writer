@@ -15,7 +15,7 @@ const Generator = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<string>("");
+  const [results, setResults] = useState<Array<{provider: string, content: string, articleId?: number}>>([]);
 
   // 需登入方可使用
   if (!localStorage.getItem("user")) {
@@ -59,7 +59,7 @@ const Generator = () => {
     }
 
     setGenerating(true);
-    setResult("");
+    setResults([]);
 
     const selectedProviders: Array<"openai" | "google" | "anthropic" | "xai"> = [];
     if (formData.selectedModels.openai) selectedProviders.push("openai");
@@ -67,126 +67,109 @@ const Generator = () => {
     if (formData.selectedModels.anthropic) selectedProviders.push("anthropic");
     if (formData.selectedModels.xai) selectedProviders.push("xai");
 
-    const results: string[] = [];
+    const generatedArticles: Array<{provider: string, content: string, articleId?: number}> = [];
 
     try {
-      for (const provider of selectedProviders) {
-        const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            topic: formData.topic,
-            keywords: formData.keywords,
-            outline: formData.outline,
-            language: formData.language,
-            style: formData.style,
-            wordCount: Number(formData.wordCount),
-            provider,
-          }),
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = user.id;
+      
+      if (!userId) {
+        toast({
+          title: "請先登入",
+          description: "需要登入才能生成和儲存文章",
+          variant: "destructive",
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const message = errorData.error || `${provider} 產生失敗`;
-          toast({
-            title: "產生失敗",
-            description: message,
-            variant: "destructive",
-          });
-          continue;
-        }
-
-        const data = await response.json();
-        const generatedText = data?.generatedText as string;
-        if (generatedText) {
-          results.push(`=== ${provider.toUpperCase()} 產生結果 ===\n\n${generatedText}\n\n`);
-        }
+        setGenerating(false);
+        return;
       }
 
-      if (results.length > 0) {
-        const fullContent = results.join("\n" + "=".repeat(50) + "\n\n");
-        setResult(fullContent);
-        
-        // 自動儲存到資料庫
+      for (const provider of selectedProviders) {
         try {
-          const user = JSON.parse(localStorage.getItem("user") || "{}");
-          const userId = user.id;
-          
-          if (!userId) {
+          // 生成文章
+          const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              topic: formData.topic,
+              keywords: formData.keywords,
+              outline: formData.outline,
+              language: formData.language,
+              style: formData.style,
+              wordCount: Number(formData.wordCount),
+              provider,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const message = errorData.error || `${provider} 產生失敗`;
             toast({
-              title: "儲存失敗",
-              description: "請先登入才能儲存文章",
+              title: "產生失敗",
+              description: message,
               variant: "destructive",
             });
-            return;
+            continue;
           }
-          
-          // 準備儲存資料（同時提供 userId 與 user_id 以相容不同版本後端）
-          const payload = {
+
+          const data = await response.json();
+          const generatedText = data?.generatedText as string;
+          if (!generatedText) continue;
+
+          // 儲存每篇文章
+          const savePayload = {
             userId: userId,
             user_id: userId,
-            title: (formData.topic || "").trim() || "未命名文章",
-            content: fullContent,
+            title: `${formData.topic} (${provider.toUpperCase()})`,
+            content: generatedText,
             topic: formData.topic,
             keywords: formData.keywords,
             outline: formData.outline,
             language: formData.language,
             style: formData.style,
             wordCount: Number(formData.wordCount),
-            aiProvider: selectedProviders.join(", "),
+            aiProvider: provider,
             status: "published",
           };
-
-          // 為了除錯：不要印出全文，只記錄長度與必要欄位
-          console.debug("[save-article] sending", {
-            titleLen: payload.title.length,
-            contentLen: payload.content.length,
-            userId: payload.userId,
-          });
 
           const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Accept": "application/json",
-              "X-Debug": "1",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(savePayload),
           });
 
+          let articleId: number | undefined;
           if (saveResponse.ok) {
-            toast({
-              title: "文章生成並儲存成功！",
-              description: `已使用 ${results.length} 個AI模型生成並儲存文章`,
-            });
-          } else {
-            const raw = await saveResponse.text();
-            let errMsg = raw;
-            let details = '';
-            try {
-              const parsed = JSON.parse(raw);
-              errMsg = parsed?.error || raw;
-              if (parsed?.details) {
-                details = ` | details: ${JSON.stringify(parsed.details)}`;
-              }
-            } catch {}
-
-            console.error("[save-article] failed", saveResponse.status, errMsg, details);
-            toast({
-              title: "文章生成成功但儲存失敗",
-              description: `HTTP ${saveResponse.status} - ${String(errMsg).slice(0, 300)}${details ? ' ' + String(details).slice(0, 400) : ''}`,
-              variant: "destructive",
-            });
+            const saveData = await saveResponse.json();
+            articleId = saveData.id;
           }
-        } catch (saveError) {
-          console.error("Save error:", saveError);
+
+          generatedArticles.push({
+            provider: provider.toUpperCase(),
+            content: generatedText,
+            articleId
+          });
+
+        } catch (providerError) {
+          console.error(`${provider} error:`, providerError);
           toast({
-            title: "文章生成成功",
-            description: `已使用 ${results.length} 個AI模型生成文章（儲存失敗）`,
+            title: `${provider.toUpperCase()} 產生失敗`,
+            description: providerError instanceof Error ? providerError.message : "未知錯誤",
+            variant: "destructive",
           });
         }
+      }
+
+      if (generatedArticles.length > 0) {
+        setResults(generatedArticles);
+        toast({
+          title: "文章生成成功！",
+          description: `已使用 ${generatedArticles.length} 個AI模型生成並儲存文章`,
+        });
       } else {
         toast({
           title: "產生失敗",
@@ -415,11 +398,25 @@ const Generator = () => {
           </Card>
         </div>
 
-        {result && (
-          <Card className="mt-6 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
-            <h3 className="text-xl font-semibold mb-4">生成結果</h3>
-            <Textarea readOnly value={result} className="min-h-[300px]" />
-          </Card>
+        {results.length > 0 && (
+          <div className="mt-6 space-y-4">
+            {results.map((article, index) => (
+              <Card key={index} className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">{article.provider} 生成結果</h3>
+                  {article.articleId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/article/${article.articleId}`)}
+                    >
+                      查看詳情
+                    </Button>
+                  )}
+                </div>
+                <Textarea readOnly value={article.content} className="min-h-[300px]" />
+              </Card>
+            ))}
+          </div>
         )}
       </div>
     </div>
