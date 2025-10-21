@@ -11,6 +11,7 @@ import { analyzeSeo, getScoreColor, getScoreLabel, type SeoScore } from "@/lib/s
 import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface Article {
   id: number;
@@ -79,38 +80,45 @@ export default function ArticleView() {
     }
   };
 
-  const downloadAsPDF = () => {
+  const downloadAsPDF = async () => {
     if (!article) return;
     
     setDownloading(true);
     try {
-      const doc = new jsPDF();
-      
-      // 設置中文字體 (使用內建字體)
-      doc.setFont("helvetica");
-      
-      // 標題
-      doc.setFontSize(20);
-      const title = article.title;
-      const titleLines = doc.splitTextToSize(title, 170);
-      doc.text(titleLines, 20, 20);
-      
-      // 內容
-      doc.setFontSize(12);
-      const content = article.content;
-      const lines = doc.splitTextToSize(content, 170);
-      
-      let y = 40;
-      lines.forEach((line: string) => {
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.text(line, 20, y);
-        y += 7;
+      const element = document.getElementById('article-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
       });
-      
-      doc.save(`${article.title}.pdf`);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`${article.title}.pdf`);
     } catch (err) {
       console.error("PDF 下載失敗:", err);
     } finally {
@@ -219,7 +227,7 @@ export default function ArticleView() {
           </div>
         </div>
 
-        <Card>
+        <Card id="article-content">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {article.status && (
