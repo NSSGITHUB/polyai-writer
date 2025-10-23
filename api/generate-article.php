@@ -141,13 +141,12 @@ try {
             'Authorization: Bearer ' . $apiKey
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'model' => 'gpt-4o-mini', // 使用實際存在的模型
+            'model' => 'gpt-5-mini-2025-08-07',
             'messages' => [
                 ['role' => 'system', 'content' => 'You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements. Make sure to write fully detailed content to reach the target word count.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'max_tokens' => min((int)($wordCount * 5), 16000), // gpt-4o-mini 使用 max_tokens
-            'temperature' => 0.7
+            'max_completion_tokens' => min((int)($wordCount * 5), 16000) // GPT-5 使用 max_completion_tokens，不支援 temperature
         ]));
 
         $response = curl_exec($ch);
