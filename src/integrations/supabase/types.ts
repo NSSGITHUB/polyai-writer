@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      wordpress_posts: {
+        Row: {
+          article_id: number
+          created_at: string
+          error_message: string | null
+          id: string
+          site_id: string
+          status: string
+          updated_at: string
+          wordpress_post_id: number | null
+        }
+        Insert: {
+          article_id: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          site_id: string
+          status?: string
+          updated_at?: string
+          wordpress_post_id?: number | null
+        }
+        Update: {
+          article_id?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          site_id?: string
+          status?: string
+          updated_at?: string
+          wordpress_post_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_posts_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "wordpress_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wordpress_sites: {
+        Row: {
+          app_password: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          url: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          app_password: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          url: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          app_password?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

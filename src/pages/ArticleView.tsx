@@ -12,6 +12,7 @@ import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
 
 interface Article {
   id: number;
@@ -208,6 +209,7 @@ export default function ArticleView() {
           </Button>
           
           <div className="flex gap-2">
+            <SendToWordPressDialog articleId={parseInt(id!)} variant="default" size="default" />
             <Button
               onClick={downloadAsWord}
               disabled={downloading}

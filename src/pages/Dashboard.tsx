@@ -9,7 +9,8 @@ import {
   Users,
   Zap,
   LogOut,
-  Key
+  Key,
+  Globe
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -221,6 +222,15 @@ const Dashboard = () => {
             <Key className="w-12 h-12 text-warning mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">金鑰管理</h3>
             <p className="text-muted-foreground">管理 AI 提供者 API 金鑰</p>
+          </Card>
+
+          <Card 
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/wordpress-sites")}
+          >
+            <Globe className="w-12 h-12 text-info mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">WordPress 站點</h3>
+            <p className="text-muted-foreground">管理 WordPress 網站，一鍵發佈文章</p>
           </Card>
         </div>
 

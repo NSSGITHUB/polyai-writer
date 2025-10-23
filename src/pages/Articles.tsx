@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
 
 const API_BASE_URL = "https://autowriter.ai.com.tw/api";
 
@@ -156,6 +157,7 @@ const Articles = () => {
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
+                      <SendToWordPressDialog articleId={article.id} variant="outline" size="sm" />
                       <Button
                         variant="outline"
                         size="sm"

@@ -13,6 +13,7 @@ import SeoAnalyzer from "./pages/SeoAnalyzer";
 import ImageGenerator from "./pages/ImageGenerator";
 import ImageGallery from "./pages/ImageGallery";
 import KeyManagement from "./pages/KeyManagement";
+import WordPressSites from "./pages/WordPressSites";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/image-generator" element={<ImageGenerator />} />
           <Route path="/image-gallery" element={<ImageGallery />} />
           <Route path="/key-management" element={<KeyManagement />} />
+          <Route path="/wordpress-sites" element={<WordPressSites />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
