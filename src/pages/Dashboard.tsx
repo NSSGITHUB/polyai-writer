@@ -16,6 +16,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Article {
   id: number;
@@ -65,11 +66,24 @@ const Dashboard = () => {
       const data = await response.json();
       
       if (data.success && data.stats) {
+        // 獲取 WordPress 發布成功的數量
+        const { data: { user } } = await supabase.auth.getUser();
+        let publishedCount = 0;
+        
+        if (user) {
+          const { count } = await supabase
+            .from('wordpress_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'success');
+          
+          publishedCount = count || 0;
+        }
+        
         setStats({
           total: data.stats.total,
           thisMonth: data.stats.monthly,
           withImages: data.stats.with_images,
-          published: data.stats.published,
+          published: publishedCount,
           totalImages: data.stats.total_images || 0,
         });
       }
