@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Send, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 interface WordPressSite {
   id: string;
@@ -107,9 +108,12 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
       let scheduledDateTime: string | undefined;
       if (isScheduled && scheduledDate) {
         const [hours, minutes] = scheduledTime.split(':');
+        // 創建台北時區的日期時間
         const dateTime = new Date(scheduledDate);
         dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        scheduledDateTime = dateTime.toISOString();
+        // 將台北時間轉換為 UTC 時間存儲
+        const utcDateTime = fromZonedTime(dateTime, 'Asia/Taipei');
+        scheduledDateTime = utcDateTime.toISOString();
       }
       
       const { data, error } = await supabase.functions.invoke('send-to-wordpress', {
@@ -128,9 +132,11 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
 
       if (data.success) {
         if (isScheduled) {
+          // 將 UTC 時間轉回台北時區顯示
+          const taipeiTime = toZonedTime(new Date(scheduledDateTime!), 'Asia/Taipei');
           toast({
             title: "已排程",
-            description: `已排程 ${selectedSites.length} 個站點在 ${format(new Date(scheduledDateTime!), 'yyyy/MM/dd HH:mm', { locale: zhCN })} 發送`,
+            description: `已排程 ${selectedSites.length} 個站點在 ${format(taipeiTime, 'yyyy/MM/dd HH:mm', { locale: zhCN })} (台北時間) 發送`,
           });
         } else {
           const successResults = data.results.filter((r: any) => r.success);

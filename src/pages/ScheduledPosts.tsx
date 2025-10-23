@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Trash2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { toZonedTime } from "date-fns-tz";
 
 interface ScheduledPost {
   id: string;
@@ -221,7 +222,7 @@ export default function ScheduledPosts() {
                     </TableCell>
                     <TableCell>
                       {post.scheduled_time
-                        ? format(new Date(post.scheduled_time), "yyyy/MM/dd HH:mm", { locale: zhCN })
+                        ? format(toZonedTime(new Date(post.scheduled_time), 'Asia/Taipei'), "yyyy/MM/dd HH:mm", { locale: zhCN }) + " (台北時間)"
                         : "立即發送"}
                     </TableCell>
                     <TableCell>
