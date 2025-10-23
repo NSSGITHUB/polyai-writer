@@ -104,11 +104,20 @@ const Generator = () => {
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const message = errorData.error || `${provider} 產生失敗`;
+            const message = errorData.error || `${provider} 產生失敗 (HTTP ${response.status})`;
+            
+            // 記錄詳細錯誤到控制台
+            console.error(`${provider} 生成錯誤:`, {
+              status: response.status,
+              error: errorData,
+              provider
+            });
+            
             toast({
-              title: "產生失敗",
+              title: `${provider.toUpperCase()} 產生失敗`,
               description: message,
               variant: "destructive",
+              duration: 8000, // 顯示更長時間
             });
             continue;
           }

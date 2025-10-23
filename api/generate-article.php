@@ -161,11 +161,30 @@ try {
         if ($httpCode !== 200) {
             $body = $response;
             curl_close($ch);
-            throw new Exception('OpenAI API error (' . $httpCode . '): ' . $body);
+            $errorDetail = json_decode($body, true);
+            $errorMsg = $errorDetail['error']['message'] ?? $body;
+            
+            // 檢查常見錯誤
+            if ($httpCode === 401) {
+                throw new Exception('OpenAI API Key 無效或已過期，請檢查金鑰設定');
+            } elseif ($httpCode === 429) {
+                throw new Exception('OpenAI API 請求過於頻繁或配額已用完，請稍後再試或充值帳戶');
+            } elseif ($httpCode === 402) {
+                throw new Exception('OpenAI 帳戶餘額不足，請前往 OpenAI 網站充值');
+            } else {
+                throw new Exception('OpenAI API 錯誤 (' . $httpCode . '): ' . $errorMsg);
+            }
         }
 
         $responseData = json_decode($response, true);
-        $generatedText = $responseData['choices'][0]['message']['content'] ?? '';
+        
+        if (!isset($responseData['choices'][0]['message']['content'])) {
+            curl_close($ch);
+            error_log('OpenAI response structure: ' . json_encode($responseData));
+            throw new Exception('OpenAI API 回應格式異常，請查看伺服器日誌');
+        }
+        
+        $generatedText = $responseData['choices'][0]['message']['content'];
         $generatedText = cleanMarkdown($generatedText);
         curl_close($ch);
     }
