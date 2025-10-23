@@ -70,8 +70,16 @@ const WordPressSites = () => {
     e.preventDefault();
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("未登入");
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw new Error("認證失敗，請重新登入");
+      }
+      
+      if (!user) {
+        throw new Error("未登入，請先登入");
+      }
 
       if (editingSite) {
         const { error } = await supabase
@@ -79,14 +87,20 @@ const WordPressSites = () => {
           .update(formData)
           .eq("id", editingSite.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Update error:", error);
+          throw error;
+        }
         toast({ title: "更新成功", description: "WordPress 站點已更新" });
       } else {
         const { error } = await supabase
           .from("wordpress_sites")
           .insert([{ ...formData, user_id: user.id }]);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Insert error:", error);
+          throw error;
+        }
         toast({ title: "新增成功", description: "WordPress 站點已新增" });
       }
 
@@ -94,11 +108,12 @@ const WordPressSites = () => {
       setFormData({ name: "", url: "", username: "", app_password: "", is_active: true });
       setEditingSite(null);
       fetchSites();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving site:", error);
+      const errorMessage = error?.message || error?.error_description || "無法儲存 WordPress 站點設定";
       toast({
         title: "儲存失敗",
-        description: "無法儲存 WordPress 站點設定",
+        description: errorMessage,
         variant: "destructive",
       });
     }
