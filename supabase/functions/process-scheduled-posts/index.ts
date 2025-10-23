@@ -124,6 +124,7 @@ serve(async (req) => {
                 content: article.content,
                 status: 'publish', // 定時發送預設為直接發布
                 excerpt: article.excerpt || '',
+                date: post.scheduled_time, // 使用排程時間作為發布日期
               }),
             });
 

@@ -145,6 +145,7 @@ serve(async (req) => {
               content: article.content,
               status: status,
               excerpt: article.excerpt || '',
+              date: new Date().toISOString(), // 使用當前時間作為發布日期
             }),
           });
 
