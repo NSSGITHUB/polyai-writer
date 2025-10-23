@@ -46,18 +46,29 @@ const Auth = () => {
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
 
-      // Also sign in to Supabase
+      // Also ensure Supabase session
       try {
-        const { error: supabaseError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (supabaseError) {
-          console.log("Supabase login info:", supabaseError.message);
+        let { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (signInErr) {
+          // Try creating the user then sign in (auto-confirm is enabled)
+          const { error: signUpErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          });
+
+          if (signUpErr && !String(signUpErr.message || '').toLowerCase().includes('already registered')) {
+            console.log('Supabase signup info:', signUpErr.message);
+          }
+
+          const res = await supabase.auth.signInWithPassword({ email, password });
+          if (res.error) {
+            console.log('Supabase final login info:', res.error.message);
+          }
         }
       } catch (supabaseError) {
-        console.log("Supabase login error:", supabaseError);
+        console.log("Supabase auth error:", supabaseError);
       }
 
       toast({

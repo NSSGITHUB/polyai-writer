@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 interface WordPressSite {
@@ -198,6 +199,7 @@ const WordPressSites = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editingSite ? "編輯" : "新增"} WordPress 站點</DialogTitle>
+                <DialogDescription>填寫 WordPress 站點資訊</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
