@@ -161,7 +161,10 @@ const Articles = () => {
                 <Card key={article.id} className="p-4 bg-background/50">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold mb-2">{article.title}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">#{article.id}</span>
+                        <h3 className="text-lg font-semibold">{article.title}</h3>
+                      </div>
                       <p className="text-sm text-muted-foreground mb-2">
                         {article.excerpt}...
                       </p>
