@@ -8,6 +8,7 @@ import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -44,6 +45,20 @@ const Auth = () => {
 
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
+
+      // Also sign in to Supabase
+      try {
+        const { error: supabaseError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (supabaseError) {
+          console.log("Supabase login info:", supabaseError.message);
+        }
+      } catch (supabaseError) {
+        console.log("Supabase login error:", supabaseError);
+      }
 
       toast({
         title: "登入成功",
@@ -95,6 +110,33 @@ const Auth = () => {
       if (loginResponse.ok) {
         localStorage.setItem('user', JSON.stringify(loginData.user));
         localStorage.setItem('token', loginData.token);
+        
+        // Also sign up and sign in to Supabase
+        try {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/dashboard`
+            }
+          });
+          
+          if (signUpError && !signUpError.message.includes('already registered')) {
+            console.log("Supabase signup info:", signUpError.message);
+          }
+          
+          // Sign in to Supabase after signup
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (signInError) {
+            console.log("Supabase login info:", signInError.message);
+          }
+        } catch (supabaseError) {
+          console.log("Supabase error:", supabaseError);
+        }
         
         toast({
           title: "註冊成功",
