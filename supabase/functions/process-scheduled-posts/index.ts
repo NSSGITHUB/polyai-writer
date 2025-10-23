@@ -85,6 +85,9 @@ serve(async (req) => {
         
         const article = articleData.data;
         console.log(`Processing article ${articleId}: ${article.title}`);
+        
+        // 清理標題，移除 AI 提供者標記
+        const cleanTitle = article.title.replace(/\s*\((GOOGLE|OPENAI|ANTHROPIC|GEMINI|GPT|CLAUDE)\)\s*$/i, '').trim();
 
         // 發送到每個站點
         for (const post of posts) {
@@ -117,7 +120,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                title: article.title,
+                title: cleanTitle,
                 content: article.content,
                 status: 'publish', // 定時發送預設為直接發布
                 excerpt: article.excerpt || '',

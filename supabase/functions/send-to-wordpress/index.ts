@@ -89,6 +89,9 @@ serve(async (req) => {
     
     const article = articleData.data;
     console.log(`Article fetched: ${article.title}`);
+    
+    // 清理標題，移除 AI 提供者標記
+    const cleanTitle = article.title.replace(/\s*\((GOOGLE|OPENAI|ANTHROPIC|GEMINI|GPT|CLAUDE)\)\s*$/i, '').trim();
 
     // 獲取所有指定的 WordPress 站點
     const { data: sites, error: sitesError } = await supabaseClient
@@ -138,7 +141,7 @@ serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              title: article.title,
+              title: cleanTitle,
               content: article.content,
               status: status,
               excerpt: article.excerpt || '',
