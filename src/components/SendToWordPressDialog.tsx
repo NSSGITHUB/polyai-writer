@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,7 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
   const [selectedSites, setSelectedSites] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<'draft' | 'publish'>('draft');
 
   useEffect(() => {
     if (open) {
@@ -83,6 +86,7 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
         body: {
           articleId,
           siteIds: selectedSites,
+          status: publishStatus,
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -152,6 +156,24 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="space-y-3 pb-3 border-b">
+              <h4 className="text-sm font-medium">發布狀態</h4>
+              <RadioGroup value={publishStatus} onValueChange={(value: 'draft' | 'publish') => setPublishStatus(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="draft" id="draft" />
+                  <Label htmlFor="draft" className="cursor-pointer font-normal">
+                    草稿（需在 WordPress 後台發布）
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="publish" id="publish" />
+                  <Label htmlFor="publish" className="cursor-pointer font-normal">
+                    直接發布
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="flex items-center space-x-2 pb-2 border-b">
               <Checkbox
                 id="select-all"

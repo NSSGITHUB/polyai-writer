@@ -22,10 +22,14 @@ serve(async (req) => {
       }
     );
 
-    const { articleId, siteIds } = await req.json();
+    const { articleId, siteIds, status = 'draft' } = await req.json();
     
     if (!articleId || !siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
       throw new Error('Missing required parameters');
+    }
+
+    if (!['draft', 'publish'].includes(status)) {
+      throw new Error('Invalid status. Must be "draft" or "publish"');
     }
 
     console.log(`Processing article ${articleId} for ${siteIds.length} sites`);
@@ -97,7 +101,7 @@ serve(async (req) => {
             body: JSON.stringify({
               title: article.title,
               content: article.content,
-              status: 'draft', // 預設為草稿
+              status: status,
               excerpt: article.excerpt || '',
             }),
           });
