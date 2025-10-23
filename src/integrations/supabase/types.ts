@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          scheduled_time: string | null
           site_id: string
           status: string
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          scheduled_time?: string | null
           site_id: string
           status?: string
           updated_at?: string
@@ -40,6 +42,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          scheduled_time?: string | null
           site_id?: string
           status?: string
           updated_at?: string
@@ -96,7 +99,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      process_scheduled_wordpress_posts: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

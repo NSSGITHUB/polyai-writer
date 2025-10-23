@@ -22,7 +22,7 @@ serve(async (req) => {
       }
     );
 
-    const { articleId, siteIds, status = 'draft' } = await req.json();
+    const { articleId, siteIds, status = 'draft', scheduledTime } = await req.json();
     
     if (!articleId || !siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
       throw new Error('Missing required parameters');
@@ -30,6 +30,45 @@ serve(async (req) => {
 
     if (!['draft', 'publish'].includes(status)) {
       throw new Error('Invalid status. Must be "draft" or "publish"');
+    }
+
+    // 如果是定時發送，直接創建scheduled記錄
+    if (scheduledTime) {
+      const scheduledDate = new Date(scheduledTime);
+      if (scheduledDate <= new Date()) {
+        throw new Error('Scheduled time must be in the future');
+      }
+
+      console.log(`Scheduling article ${articleId} for ${siteIds.length} sites at ${scheduledTime}`);
+
+      // 為每個站點創建scheduled記錄
+      const scheduledRecords = siteIds.map(siteId => ({
+        article_id: articleId,
+        site_id: siteId,
+        status: 'scheduled',
+        scheduled_time: scheduledTime
+      }));
+
+      const { error: insertError } = await supabaseClient
+        .from('wordpress_posts')
+        .insert(scheduledRecords);
+
+      if (insertError) {
+        console.error('Error creating scheduled posts:', insertError);
+        throw new Error(`Failed to schedule posts: ${insertError.message}`);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `已排程 ${siteIds.length} 個站點`,
+          scheduled: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
     }
 
     console.log(`Processing article ${articleId} for ${siteIds.length} sites`);

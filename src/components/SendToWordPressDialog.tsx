@@ -3,16 +3,26 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Send } from "lucide-react";
+import { Send, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 
 interface WordPressSite {
   id: string;
@@ -35,6 +45,9 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [publishStatus, setPublishStatus] = useState<'draft' | 'publish'>('draft');
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date>();
+  const [scheduledTime, setScheduledTime] = useState("12:00");
 
   useEffect(() => {
     if (open) {
@@ -78,15 +91,33 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
       return;
     }
 
+    if (isScheduled && !scheduledDate) {
+      toast({
+        title: "請選擇日期",
+        description: "定時發送需要選擇發送日期",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSending(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      
+      let scheduledDateTime: string | undefined;
+      if (isScheduled && scheduledDate) {
+        const [hours, minutes] = scheduledTime.split(':');
+        const dateTime = new Date(scheduledDate);
+        dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        scheduledDateTime = dateTime.toISOString();
+      }
       
       const { data, error } = await supabase.functions.invoke('send-to-wordpress', {
         body: {
           articleId,
           siteIds: selectedSites,
           status: publishStatus,
+          scheduledTime: scheduledDateTime,
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -96,25 +127,31 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
       if (error) throw error;
 
       if (data.success) {
-        const successResults = data.results.filter((r: any) => r.success);
-        const failedResults = data.results.filter((r: any) => !r.success);
-        
-        if (successResults.length > 0) {
+        if (isScheduled) {
           toast({
-            title: "發送成功",
-            description: `已發送至 ${successResults.length} 個站點`,
+            title: "已排程",
+            description: `已排程 ${selectedSites.length} 個站點在 ${format(new Date(scheduledDateTime!), 'yyyy/MM/dd HH:mm', { locale: zhCN })} 發送`,
           });
-        }
-        
-        // Show detailed error for each failed site
-        if (failedResults.length > 0) {
-          failedResults.forEach((failed: any) => {
+        } else {
+          const successResults = data.results.filter((r: any) => r.success);
+          const failedResults = data.results.filter((r: any) => !r.success);
+          
+          if (successResults.length > 0) {
             toast({
-              title: `${failed.site} 發送失敗`,
-              description: failed.error || '未知錯誤',
-              variant: "destructive",
+              title: "發送成功",
+              description: `已發送至 ${successResults.length} 個站點`,
             });
-          });
+          }
+          
+          if (failedResults.length > 0) {
+            failedResults.forEach((failed: any) => {
+              toast({
+                title: `${failed.site} 發送失敗`,
+                description: failed.error || '未知錯誤',
+                variant: "destructive",
+              });
+            });
+          }
         }
         
         setOpen(false);
@@ -157,9 +194,10 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
           發送到 WordPress
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>選擇 WordPress 站點</DialogTitle>
+          <DialogDescription>選擇要發送的站點和發送時間</DialogDescription>
         </DialogHeader>
         
         {loading ? (
@@ -174,22 +212,69 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
         ) : (
           <div className="space-y-4">
             <div className="space-y-3 pb-3 border-b">
-              <h4 className="text-sm font-medium">發布狀態</h4>
-              <RadioGroup value={publishStatus} onValueChange={(value: 'draft' | 'publish') => setPublishStatus(value)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="draft" id="draft" />
-                  <Label htmlFor="draft" className="cursor-pointer font-normal">
-                    草稿（需在 WordPress 後台發布）
-                  </Label>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">定時發送</h4>
+                <Switch checked={isScheduled} onCheckedChange={setIsScheduled} />
+              </div>
+              
+              {isScheduled && (
+                <div className="space-y-3 pt-2">
+                  <div className="grid gap-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {scheduledDate ? format(scheduledDate, 'yyyy年MM月dd日', { locale: zhCN }) : '選擇日期'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduledDate}
+                          onSelect={setScheduledDate}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="time" className="text-sm">時間：</Label>
+                      <input
+                        id="time"
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="publish" id="publish" />
-                  <Label htmlFor="publish" className="cursor-pointer font-normal">
-                    直接發布
-                  </Label>
-                </div>
-              </RadioGroup>
+              )}
             </div>
+            
+            {!isScheduled && (
+              <div className="space-y-3 pb-3 border-b">
+                <h4 className="text-sm font-medium">發布狀態</h4>
+                <RadioGroup value={publishStatus} onValueChange={(value: 'draft' | 'publish') => setPublishStatus(value)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="draft" id="draft" />
+                    <Label htmlFor="draft" className="cursor-pointer font-normal">
+                      草稿（需在 WordPress 後台發布）
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="publish" id="publish" />
+                    <Label htmlFor="publish" className="cursor-pointer font-normal">
+                      直接發布
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
 
             <div className="flex items-center space-x-2 pb-2 border-b">
               <Checkbox
@@ -220,10 +305,15 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
 
             <Button
               onClick={handleSend}
-              disabled={sending || selectedSites.length === 0}
+              disabled={sending || selectedSites.length === 0 || (isScheduled && !scheduledDate)}
               className="w-full"
             >
-              {sending ? "發送中..." : `發送到 ${selectedSites.length} 個站點`}
+              {sending 
+                ? "處理中..." 
+                : isScheduled 
+                  ? `排程發送到 ${selectedSites.length} 個站點` 
+                  : `立即發送到 ${selectedSites.length} 個站點`
+              }
             </Button>
           </div>
         )}
