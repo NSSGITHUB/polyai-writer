@@ -2,10 +2,19 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const API_BASE_URL = "https://autowriter.ai.com.tw/api";
 
@@ -35,6 +44,9 @@ const Articles = () => {
   const { toast } = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
 
   useEffect(() => {
     setMeta(
@@ -44,13 +56,17 @@ const Articles = () => {
     fetchArticles();
   }, []);
 
-  const fetchArticles = async () => {
+  const fetchArticles = async (page: number = 1) => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/get-articles.php`);
+      const response = await fetch(`${API_BASE_URL}/get-articles.php?page=${page}&limit=20`);
       const data = await response.json();
       
       if (data.success) {
         setArticles(data.data || []);
+        setTotalPages(data.pagination?.pages || 1);
+        setTotalArticles(data.pagination?.total || 0);
+        setCurrentPage(page);
       } else {
         toast({
           title: "載入失敗",
@@ -83,7 +99,7 @@ const Articles = () => {
           title: "刪除成功",
           description: "文章已刪除",
         });
-        fetchArticles();
+        fetchArticles(currentPage);
       } else {
         toast({
           title: "刪除失敗",
@@ -122,7 +138,7 @@ const Articles = () => {
             <div>
               <h2 className="text-xl font-semibold">最近文章</h2>
               <p className="text-sm text-muted-foreground">
-                {loading ? "載入中..." : `共 ${articles.length} 篇文章`}
+                {loading ? "載入中..." : `共 ${totalArticles} 篇文章 (第 ${currentPage} / ${totalPages} 頁)`}
               </p>
             </div>
             <Button onClick={() => navigate("/generator")} className="bg-gradient-primary hover:shadow-glow">
@@ -176,6 +192,59 @@ const Articles = () => {
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+          
+          {!loading && articles.length > 0 && totalPages > 1 && (
+            <div className="mt-6">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => currentPage > 1 && fetchArticles(currentPage - 1)}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          onClick={() => fetchArticles(pageNumber)}
+                          isActive={currentPage === pageNumber}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => currentPage < totalPages && fetchArticles(currentPage + 1)}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </Card>
