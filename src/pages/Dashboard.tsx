@@ -10,7 +10,8 @@ import {
   Zap,
   LogOut,
   Key,
-  Globe
+  Globe,
+  Clock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -231,6 +232,15 @@ const Dashboard = () => {
             <Globe className="w-12 h-12 text-info mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">WordPress 站點</h3>
             <p className="text-muted-foreground">管理 WordPress 網站，一鍵發佈文章</p>
+          </Card>
+
+          <Card 
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/scheduled-posts")}
+          >
+            <Clock className="w-12 h-12 text-primary-glow mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">排程管理</h3>
+            <p className="text-muted-foreground">查看排程進度與發送紀錄</p>
           </Card>
         </div>
 
