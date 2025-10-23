@@ -96,10 +96,27 @@ export const SendToWordPressDialog = ({ articleId, variant = "default", size = "
       if (error) throw error;
 
       if (data.success) {
-        toast({
-          title: "發送成功",
-          description: data.message,
-        });
+        const successResults = data.results.filter((r: any) => r.success);
+        const failedResults = data.results.filter((r: any) => !r.success);
+        
+        if (successResults.length > 0) {
+          toast({
+            title: "發送成功",
+            description: `已發送至 ${successResults.length} 個站點`,
+          });
+        }
+        
+        // Show detailed error for each failed site
+        if (failedResults.length > 0) {
+          failedResults.forEach((failed: any) => {
+            toast({
+              title: `${failed.site} 發送失敗`,
+              description: failed.error || '未知錯誤',
+              variant: "destructive",
+            });
+          });
+        }
+        
         setOpen(false);
       } else {
         throw new Error(data.error || '發送失敗');

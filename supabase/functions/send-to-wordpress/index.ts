@@ -133,12 +133,26 @@ serve(async (req) => {
           console.error(`Error sending to ${site.name}:`, error);
           const errorMessage = error instanceof Error ? error.message : String(error);
           
+          // Convert technical errors to user-friendly messages
+          let userFriendlyError = errorMessage;
+          if (errorMessage.includes('invalid peer certificate: Expired')) {
+            userFriendlyError = 'SSL 憑證已過期，請更新網站的 SSL 憑證';
+          } else if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('Failed to fetch')) {
+            userFriendlyError = '無法連接到網站，請檢查網址是否正確';
+          } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
+            userFriendlyError = '認證失敗，請檢查使用者名稱和應用程式密碼';
+          } else if (errorMessage.includes('404')) {
+            userFriendlyError = 'WordPress REST API 不存在，請確認網站支援 REST API';
+          } else if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
+            userFriendlyError = '網站伺服器錯誤，請稍後再試';
+          }
+          
           // 更新記錄為失敗
           await supabaseClient
             .from('wordpress_posts')
             .update({
               status: 'failed',
-              error_message: errorMessage
+              error_message: userFriendlyError
             })
             .eq('article_id', articleId)
             .eq('site_id', site.id);
@@ -146,7 +160,7 @@ serve(async (req) => {
           return {
             site: site.name,
             success: false,
-            error: errorMessage
+            error: userFriendlyError
           };
         }
       })
