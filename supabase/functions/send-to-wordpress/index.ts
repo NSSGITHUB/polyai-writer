@@ -93,6 +93,20 @@ serve(async (req) => {
     // 清理標題，移除 AI 提供者標記
     const cleanTitle = article.title.replace(/\s*\((GOOGLE|OPENAI|ANTHROPIC|GEMINI|GPT|CLAUDE)\)\s*$/i, '').trim();
 
+    // 獲取文章的圖片（如果有）
+    let featuredImageUrl = null;
+    try {
+      const imageResponse = await fetch(`${API_BASE_URL}/get-images.php?article_id=${articleId}`);
+      if (imageResponse.ok) {
+        const imageData = await imageResponse.json();
+        if (imageData.success && imageData.data && imageData.data.length > 0) {
+          featuredImageUrl = imageData.data[0].image_url;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching article image:', error);
+    }
+
     // 獲取所有指定的 WordPress 站點
     const { data: sites, error: sitesError } = await supabaseClient
       .from('wordpress_sites')
@@ -134,19 +148,52 @@ serve(async (req) => {
           const wpApiUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
           const credentials = btoa(`${site.username}:${site.app_password}`);
           
+          // 如果有圖片，先上傳到WordPress
+          let featuredMediaId = null;
+          if (featuredImageUrl) {
+            try {
+              const imageBlob = await (await fetch(featuredImageUrl)).blob();
+              const wpMediaUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
+              
+              const formData = new FormData();
+              formData.append('file', imageBlob, 'featured-image.png');
+              
+              const mediaResponse = await fetch(wpMediaUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Basic ${credentials}`,
+                },
+                body: formData,
+              });
+
+              if (mediaResponse.ok) {
+                const mediaData = await mediaResponse.json();
+                featuredMediaId = mediaData.id;
+              }
+            } catch (error) {
+              console.error('Error uploading image to WordPress:', error);
+            }
+          }
+
+          const postBody: any = {
+            title: cleanTitle,
+            content: article.content,
+            status: status,
+            excerpt: article.excerpt || '',
+            date: new Date().toISOString(),
+          };
+
+          if (featuredMediaId) {
+            postBody.featured_media = featuredMediaId;
+          }
+          
           const wpResponse = await fetch(wpApiUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Basic ${credentials}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              title: cleanTitle,
-              content: article.content,
-              status: status,
-              excerpt: article.excerpt || '',
-              date: new Date().toISOString(), // 使用當前時間作為發布日期
-            }),
+            body: JSON.stringify(postBody),
           });
 
           if (!wpResponse.ok) {

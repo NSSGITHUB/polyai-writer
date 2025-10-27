@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,16 +6,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 const Generator = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState<Array<{provider: string, content: string, articleId?: number}>>([]);
+  const [batchMode, setBatchMode] = useState(false);
+  const [topics, setTopics] = useState<string[]>([""]);
+  const [autoGenerateImage, setAutoGenerateImage] = useState(true);
+  const [scheduleSettings, setScheduleSettings] = useState({
+    enabled: false,
+    startDate: "",
+    selectedSiteId: "",
+  });
+  const [wordPressSites, setWordPressSites] = useState<Array<{id: string, name: string}>>([]);
 
   // 需登入方可使用
   if (!localStorage.getItem("user")) {
@@ -38,11 +48,74 @@ const Generator = () => {
     },
   });
 
+  useEffect(() => {
+    fetchWordPressSites();
+  }, []);
+
+  const fetchWordPressSites = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('wordpress_sites')
+        .select('id, name')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      setWordPressSites(data || []);
+    } catch (error) {
+      console.error('Error fetching WordPress sites:', error);
+    }
+  };
+
+  const addTopic = () => {
+    if (topics.length < 30) {
+      setTopics([...topics, ""]);
+    } else {
+      toast({
+        title: "已達上限",
+        description: "最多可批量生成30篇文章",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeTopic = (index: number) => {
+    const newTopics = topics.filter((_, i) => i !== index);
+    setTopics(newTopics.length > 0 ? newTopics : [""]);
+  };
+
+  const updateTopic = (index: number, value: string) => {
+    const newTopics = [...topics];
+    newTopics[index] = value;
+    setTopics(newTopics);
+  };
+
   const handleGenerate = async () => {
-    if (!formData.topic) {
+    const topicsToGenerate = batchMode 
+      ? topics.filter(t => t.trim()) 
+      : formData.topic ? [formData.topic] : [];
+
+    if (topicsToGenerate.length === 0) {
       toast({
         title: "請輸入文章主題",
-        description: "主題關鍵字為必填項目",
+        description: "至少需要一個文章主題",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (scheduleSettings.enabled && !scheduleSettings.selectedSiteId) {
+      toast({
+        title: "請選擇WordPress站點",
+        description: "排程發布需要選擇目標站點",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (scheduleSettings.enabled && !scheduleSettings.startDate) {
+      toast({
+        title: "請選擇開始日期",
+        description: "排程發布需要設定開始日期",
         variant: "destructive",
       });
       return;
@@ -83,101 +156,164 @@ const Generator = () => {
         return;
       }
 
-      for (const provider of selectedProviders) {
-        try {
-          // 生成文章
-          const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              topic: formData.topic,
+      let articleIndex = 0;
+      for (const topic of topicsToGenerate) {
+        for (const provider of selectedProviders) {
+          try {
+            // 生成文章
+            const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                topic: topic,
+                keywords: formData.keywords,
+                outline: formData.outline,
+                language: formData.language,
+                style: formData.style,
+                wordCount: Number(formData.wordCount),
+                provider,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              const message = errorData.error || `${provider} 產生失敗 (HTTP ${response.status})`;
+              
+              console.error(`${provider} 生成錯誤:`, {
+                status: response.status,
+                error: errorData,
+                provider
+              });
+              
+              toast({
+                title: `${provider.toUpperCase()} 產生失敗`,
+                description: message,
+                variant: "destructive",
+                duration: 8000,
+              });
+              continue;
+            }
+
+            const data = await response.json();
+            const generatedText = data?.generatedText as string;
+            if (!generatedText) continue;
+
+            // 儲存每篇文章
+            const savePayload = {
+              userId: userId,
+              user_id: userId,
+              title: `${topic} (${provider.toUpperCase()})`,
+              content: generatedText,
+              topic: topic,
               keywords: formData.keywords,
               outline: formData.outline,
               language: formData.language,
               style: formData.style,
               wordCount: Number(formData.wordCount),
-              provider,
-            }),
-          });
+              aiProvider: provider,
+              status: "published",
+            };
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const message = errorData.error || `${provider} 產生失敗 (HTTP ${response.status})`;
-            
-            // 記錄詳細錯誤到控制台
-            console.error(`${provider} 生成錯誤:`, {
-              status: response.status,
-              error: errorData,
-              provider
+            const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+              },
+              body: JSON.stringify(savePayload),
+            });
+
+            let articleId: number | undefined;
+            if (saveResponse.ok) {
+              const saveData = await saveResponse.json();
+              articleId = saveData.id;
+
+              // 自動生成圖片
+              if (autoGenerateImage && articleId) {
+                try {
+                  const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-image', {
+                    body: { 
+                      prompt: `為文章「${topic}」生成一張專業、高質量的配圖，風格現代簡潔`, 
+                      articleId 
+                    }
+                  });
+
+                  if (imageError) {
+                    console.error('圖片生成失敗:', imageError);
+                  } else if (imageData?.imageUrl) {
+                    // 保存圖片到資料庫
+                    await fetch(`${API_BASE_URL}/save-image.php`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        user_id: userId,
+                        article_id: articleId,
+                        prompt: `為文章「${topic}」生成的配圖`,
+                        imageUrl: imageData.imageUrl,
+                        width: 1024,
+                        height: 1024,
+                      }),
+                    });
+                  }
+                } catch (imgError) {
+                  console.error('圖片處理錯誤:', imgError);
+                }
+              }
+
+              // 如果啟用排程，創建排程發布
+              if (scheduleSettings.enabled && scheduleSettings.selectedSiteId) {
+                const startDate = new Date(scheduleSettings.startDate);
+                startDate.setHours(9, 0, 0, 0); // 設定為早上9點
+                const scheduledDate = new Date(startDate);
+                scheduledDate.setDate(scheduledDate.getDate() + articleIndex);
+
+                try {
+                  const { error: scheduleError } = await supabase.functions.invoke('send-to-wordpress', {
+                    body: {
+                      articleId,
+                      siteIds: [scheduleSettings.selectedSiteId],
+                      scheduledTime: scheduledDate.toISOString(),
+                    }
+                  });
+
+                  if (scheduleError) {
+                    console.error('排程失敗:', scheduleError);
+                  }
+                } catch (schedError) {
+                  console.error('排程錯誤:', schedError);
+                }
+              }
+            }
+
+            generatedArticles.push({
+              provider: provider.toUpperCase(),
+              content: generatedText,
+              articleId
             });
             
+            articleIndex++;
+
+          } catch (providerError) {
+            console.error(`${provider} error:`, providerError);
             toast({
               title: `${provider.toUpperCase()} 產生失敗`,
-              description: message,
+              description: providerError instanceof Error ? providerError.message : "未知錯誤",
               variant: "destructive",
-              duration: 8000, // 顯示更長時間
             });
-            continue;
           }
-
-          const data = await response.json();
-          const generatedText = data?.generatedText as string;
-          if (!generatedText) continue;
-
-          // 儲存每篇文章
-          const savePayload = {
-            userId: userId,
-            user_id: userId,
-            title: `${formData.topic} (${provider.toUpperCase()})`,
-            content: generatedText,
-            topic: formData.topic,
-            keywords: formData.keywords,
-            outline: formData.outline,
-            language: formData.language,
-            style: formData.style,
-            wordCount: Number(formData.wordCount),
-            aiProvider: provider,
-            status: "published",
-          };
-
-          const saveResponse = await fetch(`${API_BASE_URL}/save-article.php`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify(savePayload),
-          });
-
-          let articleId: number | undefined;
-          if (saveResponse.ok) {
-            const saveData = await saveResponse.json();
-            articleId = saveData.id;
-          }
-
-          generatedArticles.push({
-            provider: provider.toUpperCase(),
-            content: generatedText,
-            articleId
-          });
-
-        } catch (providerError) {
-          console.error(`${provider} error:`, providerError);
-          toast({
-            title: `${provider.toUpperCase()} 產生失敗`,
-            description: providerError instanceof Error ? providerError.message : "未知錯誤",
-            variant: "destructive",
-          });
         }
       }
 
       if (generatedArticles.length > 0) {
         setResults(generatedArticles);
+        const scheduleMsg = scheduleSettings.enabled 
+          ? `，並已排程發布至WordPress` 
+          : '';
         toast({
           title: "文章生成成功！",
-          description: `已使用 ${generatedArticles.length} 個AI模型生成並儲存文章`,
+          description: `已生成並儲存 ${generatedArticles.length} 篇文章${scheduleMsg}`,
         });
       } else {
         toast({
@@ -220,16 +356,62 @@ const Generator = () => {
           {/* Main Form */}
           <Card className="lg:col-span-2 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
             <div className="space-y-6">
-              {/* Topic */}
-              <div className="space-y-2">
-                <Label htmlFor="topic">文章主題 *</Label>
-                <Input
-                  id="topic"
-                  placeholder="例如：人工智慧在醫療領域的應用"
-                  value={formData.topic}
-                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+              {/* 批量模式切換 */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
+                <Checkbox
+                  id="batchMode"
+                  checked={batchMode}
+                  onCheckedChange={(checked) => setBatchMode(!!checked)}
                 />
+                <Label htmlFor="batchMode" className="cursor-pointer">
+                  批量生成模式（可生成多篇文章）
+                </Label>
               </div>
+
+              {/* Topic(s) */}
+              {batchMode ? (
+                <div className="space-y-2">
+                  <Label>文章主題列表 * （最多30篇）</Label>
+                  {topics.map((topic, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        placeholder={`主題 ${index + 1}`}
+                        value={topic}
+                        onChange={(e) => updateTopic(index, e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeTopic(index)}
+                        disabled={topics.length === 1}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addTopic}
+                    disabled={topics.length >= 30}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    添加主題
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="topic">文章主題 *</Label>
+                  <Input
+                    id="topic"
+                    placeholder="例如：人工智慧在醫療領域的應用"
+                    value={formData.topic}
+                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                  />
+                </div>
+              )}
 
               {/* Keywords */}
               <div className="space-y-2">
@@ -314,6 +496,75 @@ const Generator = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* 自動生成圖片選項 */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
+                <Checkbox
+                  id="autoImage"
+                  checked={autoGenerateImage}
+                  onCheckedChange={(checked) => setAutoGenerateImage(!!checked)}
+                />
+                <Label htmlFor="autoImage" className="cursor-pointer">
+                  自動為每篇文章生成配圖
+                </Label>
+              </div>
+
+              {/* 排程發布設定 */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
+                  <Checkbox
+                    id="scheduleEnabled"
+                    checked={scheduleSettings.enabled}
+                    onCheckedChange={(checked) => 
+                      setScheduleSettings({ ...scheduleSettings, enabled: !!checked })
+                    }
+                  />
+                  <Label htmlFor="scheduleEnabled" className="cursor-pointer">
+                    啟用每日自動排程發布至WordPress
+                  </Label>
+                </div>
+
+                {scheduleSettings.enabled && (
+                  <div className="space-y-4 pl-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">開始日期</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={scheduleSettings.startDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => 
+                          setScheduleSettings({ ...scheduleSettings, startDate: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        每篇文章將依序在每天早上9點發布，最長30天
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="wpSite">目標WordPress站點</Label>
+                      <Select
+                        value={scheduleSettings.selectedSiteId}
+                        onValueChange={(value) => 
+                          setScheduleSettings({ ...scheduleSettings, selectedSiteId: value })
+                        }
+                      >
+                        <SelectTrigger id="wpSite">
+                          <SelectValue placeholder="選擇站點" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wordPressSites.map((site) => (
+                            <SelectItem key={site.id} value={site.id}>
+                              {site.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </Card>
