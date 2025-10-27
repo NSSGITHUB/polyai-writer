@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Sparkles, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
@@ -18,11 +18,12 @@ const Generator = () => {
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState<Array<{provider: string, content: string, articleId?: number}>>([]);
   const [batchMode, setBatchMode] = useState(false);
-  const [topics, setTopics] = useState<string[]>([""]);
+  const [batchCount, setBatchCount] = useState(5);
   const [autoGenerateImage, setAutoGenerateImage] = useState(true);
   const [scheduleSettings, setScheduleSettings] = useState({
     enabled: false,
     startDate: "",
+    publishTime: "09:00",
     selectedSiteId: "",
   });
   const [wordPressSites, setWordPressSites] = useState<Array<{id: string, name: string}>>([]);
@@ -66,42 +67,18 @@ const Generator = () => {
     }
   };
 
-  const addTopic = () => {
-    if (topics.length < 30) {
-      setTopics([...topics, ""]);
-    } else {
-      toast({
-        title: "已達上限",
-        description: "最多可批量生成30篇文章",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const removeTopic = (index: number) => {
-    const newTopics = topics.filter((_, i) => i !== index);
-    setTopics(newTopics.length > 0 ? newTopics : [""]);
-  };
-
-  const updateTopic = (index: number, value: string) => {
-    const newTopics = [...topics];
-    newTopics[index] = value;
-    setTopics(newTopics);
-  };
 
   const handleGenerate = async () => {
-    const topicsToGenerate = batchMode 
-      ? topics.filter(t => t.trim()) 
-      : formData.topic ? [formData.topic] : [];
-
-    if (topicsToGenerate.length === 0) {
+    if (!formData.topic) {
       toast({
         title: "請輸入文章主題",
-        description: "至少需要一個文章主題",
+        description: "主題為必填項目",
         variant: "destructive",
       });
       return;
     }
+
+    const articlesToGenerate = batchMode ? batchCount : 1;
 
     if (scheduleSettings.enabled && !scheduleSettings.selectedSiteId) {
       toast({
@@ -157,17 +134,18 @@ const Generator = () => {
       }
 
       let articleIndex = 0;
-      for (const topic of topicsToGenerate) {
+      for (let i = 0; i < articlesToGenerate; i++) {
         for (const provider of selectedProviders) {
           try {
             // 生成文章
+            const articleNumber = batchMode ? ` 第${i + 1}篇` : '';
             const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                topic: topic,
+                topic: formData.topic,
                 keywords: formData.keywords,
                 outline: formData.outline,
                 language: formData.language,
@@ -204,9 +182,9 @@ const Generator = () => {
             const savePayload = {
               userId: userId,
               user_id: userId,
-              title: `${topic} (${provider.toUpperCase()})`,
+              title: `${formData.topic}${articleNumber} (${provider.toUpperCase()})`,
               content: generatedText,
-              topic: topic,
+              topic: formData.topic,
               keywords: formData.keywords,
               outline: formData.outline,
               language: formData.language,
@@ -235,7 +213,7 @@ const Generator = () => {
                 try {
                   const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-image', {
                     body: { 
-                      prompt: `為文章「${topic}」生成一張專業、高質量的配圖，風格現代簡潔`, 
+                      prompt: `為文章「${formData.topic}」生成一張專業、高質量的配圖，風格現代簡潔`, 
                       articleId 
                     }
                   });
@@ -250,7 +228,7 @@ const Generator = () => {
                       body: JSON.stringify({
                         user_id: userId,
                         article_id: articleId,
-                        prompt: `為文章「${topic}」生成的配圖`,
+                        prompt: `為文章「${formData.topic}」生成的配圖`,
                         imageUrl: imageData.imageUrl,
                         width: 1024,
                         height: 1024,
@@ -264,8 +242,9 @@ const Generator = () => {
 
               // 如果啟用排程，創建排程發布
               if (scheduleSettings.enabled && scheduleSettings.selectedSiteId) {
+                const [hours, minutes] = scheduleSettings.publishTime.split(':').map(Number);
                 const startDate = new Date(scheduleSettings.startDate);
-                startDate.setHours(9, 0, 0, 0); // 設定為早上9點
+                startDate.setHours(hours, minutes, 0, 0);
                 const scheduledDate = new Date(startDate);
                 scheduledDate.setDate(scheduledDate.getDate() + articleIndex);
 
@@ -356,62 +335,47 @@ const Generator = () => {
           {/* Main Form */}
           <Card className="lg:col-span-2 p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
             <div className="space-y-6">
-              {/* 批量模式切換 */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
-                <Checkbox
-                  id="batchMode"
-                  checked={batchMode}
-                  onCheckedChange={(checked) => setBatchMode(!!checked)}
+              {/* Topic */}
+              <div className="space-y-2">
+                <Label htmlFor="topic">文章主題 *</Label>
+                <Input
+                  id="topic"
+                  placeholder="例如：人工智慧在醫療領域的應用"
+                  value={formData.topic}
+                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
                 />
-                <Label htmlFor="batchMode" className="cursor-pointer">
-                  批量生成模式（可生成多篇文章）
-                </Label>
               </div>
 
-              {/* Topic(s) */}
-              {batchMode ? (
-                <div className="space-y-2">
-                  <Label>文章主題列表 * （最多30篇）</Label>
-                  {topics.map((topic, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder={`主題 ${index + 1}`}
-                        value={topic}
-                        onChange={(e) => updateTopic(index, e.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removeTopic(index)}
-                        disabled={topics.length === 1}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addTopic}
-                    disabled={topics.length >= 30}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    添加主題
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="topic">文章主題 *</Label>
-                  <Input
-                    id="topic"
-                    placeholder="例如：人工智慧在醫療領域的應用"
-                    value={formData.topic}
-                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+              {/* 批量模式設定 */}
+              <div className="space-y-3 p-4 rounded-lg bg-background/50">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="batchMode"
+                    checked={batchMode}
+                    onCheckedChange={(checked) => setBatchMode(!!checked)}
                   />
+                  <Label htmlFor="batchMode" className="cursor-pointer">
+                    批量生成模式（生成多篇同主題文章）
+                  </Label>
                 </div>
-              )}
+                
+                {batchMode && (
+                  <div className="space-y-2 pl-7">
+                    <Label htmlFor="batchCount">生成數量（最多30篇）</Label>
+                    <Input
+                      id="batchCount"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={batchCount}
+                      onChange={(e) => setBatchCount(Math.min(30, Math.max(1, Number(e.target.value))))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      將生成 {batchCount} 篇相同主題的文章
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* Keywords */}
               <div className="space-y-2">
@@ -527,21 +491,35 @@ const Generator = () => {
 
                 {scheduleSettings.enabled && (
                   <div className="space-y-4 pl-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="startDate">開始日期</Label>
-                      <Input
-                        id="startDate"
-                        type="date"
-                        value={scheduleSettings.startDate}
-                        min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => 
-                          setScheduleSettings({ ...scheduleSettings, startDate: e.target.value })
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        每篇文章將依序在每天早上9點發布，最長30天
-                      </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="startDate">開始日期</Label>
+                        <Input
+                          id="startDate"
+                          type="date"
+                          value={scheduleSettings.startDate}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => 
+                            setScheduleSettings({ ...scheduleSettings, startDate: e.target.value })
+                          }
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="publishTime">發布時間</Label>
+                        <Input
+                          id="publishTime"
+                          type="time"
+                          value={scheduleSettings.publishTime}
+                          onChange={(e) => 
+                            setScheduleSettings({ ...scheduleSettings, publishTime: e.target.value })
+                          }
+                        />
+                      </div>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      每篇文章將依序在每天 {scheduleSettings.publishTime} 發布，最長30天
+                    </p>
 
                     <div className="space-y-2">
                       <Label htmlFor="wpSite">目標WordPress站點</Label>
