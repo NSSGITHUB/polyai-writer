@@ -301,22 +301,29 @@ export default function ArticleView() {
             {images.length > 0 && (
               <div className="mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {images.map((image) => (
-                    <div key={image.id} className="rounded-lg overflow-hidden border">
-                      <img 
-                        src={image.image_url} 
-                        alt={image.prompt}
-                        className="w-full h-auto object-cover"
-                        onError={(e) => {
-                          console.error('圖片載入失敗:', image.image_url);
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                      <div className="p-2 bg-muted text-xs text-muted-foreground">
-                        {image.prompt}
+                  {images.map((image) => {
+                    // 確保使用完整URL
+                    const imageUrl = image.image_url.startsWith('http') 
+                      ? image.image_url 
+                      : `https://autowriter.ai.com.tw${image.image_url}`;
+                    
+                    return (
+                      <div key={image.id} className="rounded-lg overflow-hidden border">
+                        <img 
+                          src={imageUrl} 
+                          alt={image.prompt}
+                          className="w-full h-auto object-cover"
+                          onError={(e) => {
+                            console.error('圖片載入失敗:', imageUrl);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div className="p-2 bg-muted text-xs text-muted-foreground">
+                          {image.prompt}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <Separator className="my-6" />
               </div>

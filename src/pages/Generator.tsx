@@ -26,6 +26,10 @@ const Generator = () => {
     publishTime: "09:00",
     selectedSiteId: "",
   });
+  const [directPublishSettings, setDirectPublishSettings] = useState({
+    enabled: false,
+    selectedSiteIds: [] as string[],
+  });
   const [wordPressSites, setWordPressSites] = useState<Array<{id: string, name: string}>>([]);
 
   // 需登入方可使用
@@ -96,6 +100,15 @@ const Generator = () => {
       toast({
         title: "請選擇開始日期",
         description: "排程發布需要設定開始日期",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (directPublishSettings.enabled && directPublishSettings.selectedSiteIds.length === 0) {
+      toast({
+        title: "請選擇WordPress站點",
+        description: "立即發布需要選擇至少一個目標站點",
         variant: "destructive",
       });
       return;
@@ -295,6 +308,33 @@ const Generator = () => {
                   console.error('排程錯誤:', schedError);
                 }
               }
+
+              // 如果啟用立即發布，直接發布到WordPress
+              if (directPublishSettings.enabled && directPublishSettings.selectedSiteIds.length > 0 && articleId) {
+                try {
+                  const { data: publishData, error: publishError } = await supabase.functions.invoke('send-to-wordpress', {
+                    body: {
+                      articleId,
+                      siteIds: directPublishSettings.selectedSiteIds,
+                      status: 'publish',
+                    }
+                  });
+
+                  if (publishError) {
+                    console.error('立即發布失敗:', publishError);
+                    toast({
+                      title: "WordPress發布失敗",
+                      description: publishError.message,
+                      variant: "destructive",
+                    });
+                  } else if (publishData?.success) {
+                    const successCount = publishData.results?.filter((r: any) => r.success).length || 0;
+                    console.log(`成功發布至 ${successCount} 個WordPress站點`);
+                  }
+                } catch (publishErr) {
+                  console.error('立即發布錯誤:', publishErr);
+                }
+              }
             }
 
             generatedArticles.push({
@@ -320,7 +360,9 @@ const Generator = () => {
         setResults(generatedArticles);
         const scheduleMsg = scheduleSettings.enabled 
           ? `，並已排程發布至WordPress` 
-          : '';
+          : directPublishSettings.enabled 
+            ? `，並已發布至 ${directPublishSettings.selectedSiteIds.length} 個WordPress站點` 
+            : '';
         toast({
           title: "文章生成成功！",
           description: `已生成並儲存 ${generatedArticles.length} 篇文章${scheduleMsg}`,
@@ -542,15 +584,70 @@ const Generator = () => {
                 </Label>
               </div>
 
-              {/* 排程發布設定 */}
+              {/* WordPress發布設定 */}
               <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
+                    <Checkbox
+                      id="directPublishEnabled"
+                      checked={directPublishSettings.enabled}
+                      onCheckedChange={(checked) => {
+                        setDirectPublishSettings({ ...directPublishSettings, enabled: !!checked });
+                        if (checked) {
+                          setScheduleSettings({ ...scheduleSettings, enabled: false });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="directPublishEnabled" className="cursor-pointer">
+                      生成後立即發布至WordPress
+                    </Label>
+                  </div>
+
+                  {directPublishSettings.enabled && (
+                    <div className="space-y-3 pl-4">
+                      <Label>選擇目標站點</Label>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-lg p-3">
+                        {wordPressSites.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">尚無可用的WordPress站點</p>
+                        ) : (
+                          wordPressSites.map(site => (
+                            <div key={site.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`direct-site-${site.id}`}
+                                checked={directPublishSettings.selectedSiteIds.includes(site.id)}
+                                onCheckedChange={(checked) => {
+                                  setDirectPublishSettings(prev => ({
+                                    ...prev,
+                                    selectedSiteIds: checked 
+                                      ? [...prev.selectedSiteIds, site.id]
+                                      : prev.selectedSiteIds.filter(id => id !== site.id)
+                                  }));
+                                }}
+                              />
+                              <Label htmlFor={`direct-site-${site.id}`} className="cursor-pointer text-sm">
+                                {site.name}
+                              </Label>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        文章生成後將立即發布至所選站點
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center space-x-3 p-3 rounded-lg bg-background/50">
                   <Checkbox
                     id="scheduleEnabled"
                     checked={scheduleSettings.enabled}
-                    onCheckedChange={(checked) => 
-                      setScheduleSettings({ ...scheduleSettings, enabled: !!checked })
-                    }
+                    onCheckedChange={(checked) => {
+                      setScheduleSettings({ ...scheduleSettings, enabled: !!checked });
+                      if (checked) {
+                        setDirectPublishSettings({ ...directPublishSettings, enabled: false });
+                      }
+                    }}
                   />
                   <Label htmlFor="scheduleEnabled" className="cursor-pointer">
                     啟用每日自動排程發布至WordPress
