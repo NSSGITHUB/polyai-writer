@@ -155,13 +155,8 @@ const Generator = () => {
           try {
             // 生成文章
             const articleNumber = batchMode ? ` 第${i + 1}篇` : '';
-            const generateResponse = await fetch(`${API_BASE_URL}/generate-article.php`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-              },
-              body: JSON.stringify({
+            const { data, error } = await supabase.functions.invoke('generate-article', {
+              body: {
                 topic: formData.topic,
                 keywords: formData.keywords,
                 outline: formData.outline,
@@ -172,23 +167,21 @@ const Generator = () => {
                 style: formData.style,
                 wordCount: Number(formData.wordCount),
                 provider,
-              }),
+              }
             });
 
-            if (!generateResponse.ok) {
-              const errorText = await generateResponse.text();
-              console.error(`${provider} 生成錯誤:`, errorText);
+            if (error) {
+              console.error(`${provider} 生成錯誤:`, error);
               toast({
                 title: `${provider.toUpperCase()} 產生失敗`,
-                description: errorText || 'AI 服務錯誤',
+                description: error.message || 'AI 服務錯誤',
                 variant: 'destructive',
                 duration: 8000,
               });
               continue;
             }
 
-            const generateData = await generateResponse.json();
-            const generatedText = generateData.generatedText || '';
+            const generatedText = (data?.generatedText as string) || '';
             const sanitize = (text: string) =>
               text
                 .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
