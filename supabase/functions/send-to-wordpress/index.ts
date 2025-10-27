@@ -156,23 +156,51 @@ serve(async (req) => {
           let featuredMediaId = null;
           if (featuredImageUrl) {
             try {
-              const imageBlob = await (await fetch(featuredImageUrl)).blob();
-              const wpMediaUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
-              
-              const formData = new FormData();
-              formData.append('file', imageBlob, 'featured-image.png');
-              
-              const mediaResponse = await fetch(wpMediaUrl, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Basic ${credentials}`,
-                },
-                body: formData,
-              });
+              let imageBlob: Blob | null = null;
+              let filename = 'featured-image.png';
 
-              if (mediaResponse.ok) {
-                const mediaData = await mediaResponse.json();
-                featuredMediaId = mediaData.id;
+              if (/^data:image\//i.test(featuredImageUrl)) {
+                // Handle data URL directly
+                const match = featuredImageUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+                if (match) {
+                  const mime = match[1];
+                  const b64 = match[2];
+                  const binary = atob(b64);
+                  const bytes = new Uint8Array(binary.length);
+                  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                  imageBlob = new Blob([bytes], { type: mime });
+                  if (mime.includes('jpeg') || mime.includes('jpg')) filename = 'featured-image.jpg';
+                }
+              } else {
+                // Fetch remote image
+                imageBlob = await (await fetch(featuredImageUrl)).blob();
+                if (imageBlob.type.includes('jpeg') || imageBlob.type.includes('jpg')) filename = 'featured-image.jpg';
+              }
+
+              if (imageBlob) {
+                const wpMediaUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
+                const formData = new FormData();
+                formData.append('file', imageBlob, filename);
+                // Optional metadata
+                formData.append('title', cleanTitle);
+                formData.append('alt_text', cleanTitle);
+
+                const mediaResponse = await fetch(wpMediaUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    // Let fetch set multipart boundary automatically
+                  },
+                  body: formData,
+                });
+
+                if (mediaResponse.ok) {
+                  const mediaData = await mediaResponse.json();
+                  featuredMediaId = mediaData.id;
+                } else {
+                  const errText = await mediaResponse.text();
+                  console.error('WP media upload failed:', mediaResponse.status, errText);
+                }
               }
             } catch (error) {
               console.error('Error uploading image to WordPress:', error);

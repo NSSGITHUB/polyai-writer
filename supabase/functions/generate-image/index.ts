@@ -39,7 +39,7 @@ serve(async (req) => {
             {
               role: 'system',
               content: [
-                { type: 'text', text: 'You are an image generation model. Always return an image in message.images and avoid plain text responses.' }
+                { type: 'text', text: 'You are an image generation model. Always return an image in message.images and avoid plain text responses. IMPORTANT: Do not include any text, words, letters, watermarks, logos, or typographic elements in the generated image. No text.' }
               ]
             },
             {

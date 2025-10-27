@@ -11,7 +11,7 @@ import { analyzeSeo, getScoreColor, getScoreLabel, type SeoScore } from "@/lib/s
 import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+
 import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
 
 interface Article {
@@ -97,37 +97,72 @@ export default function ArticleView() {
     
     setDownloading(true);
     try {
-      const element = document.getElementById('article-content');
-      if (!element) return;
+      // Helper to convert an image URL (http/data/relative) to data URL
+      const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' }> => {
+        const resolveUrl = (u: string) =>
+          u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`;
+        const finalUrl = resolveUrl(url);
+        if (finalUrl.startsWith('data:')) {
+          const mime = finalUrl.substring(5, finalUrl.indexOf(';'));
+          const format = mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : 'PNG';
+          return { dataUrl: finalUrl, format };
+        }
+        const res = await fetch(finalUrl);
+        const blob = await res.blob();
+        const format = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+        const reader = new FileReader();
+        const p = new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(blob);
+        const dataUrl = await p;
+        return { dataUrl, format };
+      };
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      let y = 20;
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
+      // Title
+      pdf.setFontSize(18);
+      const titleLines = pdf.splitTextToSize(article.title, 180);
+      pdf.text(titleLines, 15, y);
+      y += titleLines.length * 8 + 4;
 
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      // First image if available
+      if (images.length > 0) {
+        try {
+          const first = images[0];
+          const url = first.image_url.startsWith('http') || first.image_url.startsWith('data:')
+            ? first.image_url
+            : `https://autowriter.ai.com.tw${first.image_url}`;
+          const { dataUrl, format } = await toDataUrl(url);
+          // Estimate dimensions (jsPDF doesn't expose getImageProperties in all builds)
+          // We draw the image at max width 180mm, height scaled by 16:9 fallback if unknown
+          const img = new Image();
+          const dim = await new Promise<{ w: number; h: number }>((resolve) => {
+            img.onload = () => resolve({ w: img.width, h: img.height });
+            img.src = dataUrl;
+          });
+          const maxW = 180;
+          const h = (dim.h * maxW) / dim.w;
+          pdf.addImage(dataUrl, format, 15, y, maxW, h);
+          y += h + 8;
+        } catch (e) {
+          console.warn('PDF 圖片嵌入失敗，將僅輸出文字', e);
+        }
+      }
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      // Content text
+      pdf.setFontSize(12);
+      const contentLines = pdf.splitTextToSize(article.content, 180);
+      for (const line of contentLines) {
+        if (y > 285) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, 15, y);
+        y += 6;
       }
 
       pdf.save(`${article.title}.pdf`);
@@ -301,7 +336,7 @@ export default function ArticleView() {
             {images.length > 0 && (() => {
               const first = images[0];
               const rest = images.slice(1);
-              const firstUrl = first.image_url.startsWith('http') 
+               const firstUrl = first.image_url.startsWith('http') || first.image_url.startsWith('data:') 
                 ? first.image_url 
                 : `https://autowriter.ai.com.tw${first.image_url}`;
               return (
@@ -326,7 +361,7 @@ export default function ArticleView() {
                   {rest.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                       {rest.map((image) => {
-                        const url = image.image_url.startsWith('http') 
+                         const url = image.image_url.startsWith('http') || image.image_url.startsWith('data:') 
                           ? image.image_url 
                           : `https://autowriter.ai.com.tw${image.image_url}`;
                         return (
