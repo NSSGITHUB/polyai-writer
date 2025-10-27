@@ -19,12 +19,44 @@ require_once 'db-config.php';
 
 try {
     $userId = $_GET['user_id'] ?? null;
+    $articleId = $_GET['article_id'] ?? null;
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
     $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
+    // 如果提供了 article_id，則只查詢該文章的圖片（不需要 user_id）
+    if ($articleId) {
+        $pdo = getDBConnection();
+        
+        $stmt = $pdo->prepare("
+            SELECT 
+                ai.id,
+                ai.article_id,
+                ai.prompt,
+                ai.image_url,
+                ai.width,
+                ai.height,
+                ai.is_selected,
+                ai.created_at,
+                a.title as article_title
+            FROM article_images ai
+            LEFT JOIN articles a ON ai.article_id = a.id
+            WHERE ai.article_id = ?
+            ORDER BY ai.created_at DESC
+        ");
+        $stmt->execute([$articleId]);
+        $images = $stmt->fetchAll();
+
+        echo json_encode([
+            'success' => true,
+            'data' => $images,
+            'total' => count($images)
+        ]);
+        exit();
+    }
+    
     if (!$userId) {
         http_response_code(400);
-        echo json_encode(['error' => '需要提供用戶ID']);
+        echo json_encode(['error' => '需要提供用戶ID或文章ID']);
         exit();
     }
 
@@ -36,7 +68,7 @@ try {
             ai.id,
             ai.article_id,
             ai.prompt,
-            COALESCE(ai.image_data, ai.image_url) as image_url,
+            ai.image_url,
             ai.width,
             ai.height,
             ai.is_selected,

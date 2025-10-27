@@ -29,6 +29,16 @@ interface Article {
   updated_at?: string;
 }
 
+interface ArticleImage {
+  id: string;
+  article_id: number;
+  prompt: string;
+  image_url: string;
+  width: number;
+  height: number;
+  created_at: string;
+}
+
 const setMeta = (title: string, description: string) => {
   document.title = title;
   const metaDescription = document.querySelector('meta[name="description"]');
@@ -41,6 +51,7 @@ export default function ArticleView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [article, setArticle] = useState<Article | null>(null);
+  const [images, setImages] = useState<ArticleImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seoScore, setSeoScore] = useState<SeoScore | null>(null);
@@ -152,6 +163,19 @@ export default function ArticleView() {
             result.data.keywords
           );
           setSeoScore(score);
+
+          // 獲取文章圖片
+          try {
+            const imageResponse = await fetch(`${API_BASE_URL}/get-images.php?article_id=${id}`);
+            if (imageResponse.ok) {
+              const imageResult = await imageResponse.json();
+              if (imageResult.success && imageResult.data) {
+                setImages(imageResult.data);
+              }
+            }
+          } catch (imgErr) {
+            console.error("載入圖片失敗:", imgErr);
+          }
         } else {
           throw new Error(result.error || "無法載入文章");
         }
@@ -273,6 +297,31 @@ export default function ArticleView() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* 文章配圖 */}
+            {images.length > 0 && (
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {images.map((image) => (
+                    <div key={image.id} className="rounded-lg overflow-hidden border">
+                      <img 
+                        src={image.image_url} 
+                        alt={image.prompt}
+                        className="w-full h-auto object-cover"
+                        onError={(e) => {
+                          console.error('圖片載入失敗:', image.image_url);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                      <div className="p-2 bg-muted text-xs text-muted-foreground">
+                        {image.prompt}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Separator className="my-6" />
+              </div>
+            )}
+            
             <div className="prose prose-slate dark:prose-invert max-w-none">
               <div className="whitespace-pre-wrap leading-relaxed">
                 {article.content}

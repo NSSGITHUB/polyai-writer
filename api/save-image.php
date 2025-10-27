@@ -42,7 +42,7 @@ try {
 
     $savedImageUrl = null;
     
-    // 如果有 base64 圖片資料，儲存為實體檔案
+    // 優先處理 base64 圖片資料，儲存為實體檔案
     if ($imageData && strpos($imageData, 'data:image') === 0) {
         // 解析 base64
         preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches);
@@ -56,11 +56,28 @@ try {
         
         // 寫入檔案
         if (file_put_contents($filepath, $decodedData)) {
-            $savedImageUrl = '/uploads/images/' . $filename;
+            // 返回完整的 URL 路徑
+            $savedImageUrl = 'https://autowriter.ai.com.tw/uploads/images/' . $filename;
         }
     } else if ($imageUrl) {
-        // 如果只有 URL，直接使用
-        $savedImageUrl = $imageUrl;
+        // 如果只有 URL，檢查是否為 base64
+        if (strpos($imageUrl, 'data:image') === 0) {
+            // 也是 base64，需要儲存
+            preg_match('/^data:image\/(\w+);base64,/', $imageUrl, $matches);
+            $imageType = $matches[1] ?? 'png';
+            $base64Data = preg_replace('/^data:image\/\w+;base64,/', '', $imageUrl);
+            $decodedData = base64_decode($base64Data);
+            
+            $filename = uniqid('img_') . '_' . time() . '.' . $imageType;
+            $filepath = $uploadDir . $filename;
+            
+            if (file_put_contents($filepath, $decodedData)) {
+                $savedImageUrl = 'https://autowriter.ai.com.tw/uploads/images/' . $filename;
+            }
+        } else {
+            // 已經是 URL，直接使用
+            $savedImageUrl = $imageUrl;
+        }
     }
 
     if (!$savedImageUrl) {
