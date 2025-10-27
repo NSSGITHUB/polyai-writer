@@ -67,13 +67,25 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('AI response received');
+    console.log('AI response received:', JSON.stringify(data, null, 2));
     
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // 檢查回應結構
+    if (!data.choices || !data.choices[0]) {
+      console.error('Invalid response structure:', data);
+      throw new Error('AI 回應格式錯誤');
+    }
+
+    const message = data.choices[0].message;
+    console.log('Message structure:', JSON.stringify(message, null, 2));
+    
+    const imageUrl = message?.images?.[0]?.image_url?.url;
     
     if (!imageUrl) {
-      throw new Error('未能生成圖片');
+      console.error('No image URL found in response. Message:', message);
+      throw new Error('未能從 AI 回應中提取圖片 URL');
     }
+
+    console.log('Image URL extracted successfully');
 
     return new Response(
       JSON.stringify({ 
