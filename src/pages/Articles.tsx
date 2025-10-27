@@ -39,6 +39,44 @@ const setMeta = (title: string, description: string) => {
   if (meta) meta.setAttribute("content", description);
 };
 
+const resolveUrl = (u: string) => (u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`);
+
+function ArticleThumb({ id, title }: { id: number; title: string }) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/get-images.php?article_id=${id}`);
+        const data = await res.json();
+        const first = data?.success && data?.data && data.data[0];
+        if (!aborted && first?.image_url) {
+          setThumb(resolveUrl(first.image_url));
+        }
+      } catch (e) {
+        console.warn('縮圖載入失敗:', e);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [id]);
+
+  return (
+    <div className="w-24 h-24 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+      {thumb ? (
+        <img
+          src={thumb}
+          alt={`${title} 配圖`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        />
+      ) : (
+        <div className="w-full h-full animate-pulse" />
+      )}
+    </div>
+  );
+}
+
 const Articles = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -159,23 +197,26 @@ const Articles = () => {
             <div className="space-y-4">
               {articles.map((article) => (
                 <Card key={article.id} className="p-4 bg-background/50">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">#{article.id}</span>
-                        <h3 className="text-lg font-semibold">{article.title}</h3>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-start gap-4 flex-1">
+                        <ArticleThumb id={article.id} title={article.title} />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">#{article.id}</span>
+                            <h3 className="text-lg font-semibold">{article.title}</h3>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {article.excerpt}...
+                          </p>
+                          <div className="flex gap-4 text-xs text-muted-foreground">
+                            <span>🤖 {article.ai_provider}</span>
+                            <span>📝 {article.word_count} 字</span>
+                            <span>🌐 {article.language}</span>
+                            <span>📅 {new Date(article.created_at).toLocaleDateString("zh-TW")}</span>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {article.excerpt}...
-                      </p>
-                      <div className="flex gap-4 text-xs text-muted-foreground">
-                        <span>🤖 {article.ai_provider}</span>
-                        <span>📝 {article.word_count} 字</span>
-                        <span>🌐 {article.language}</span>
-                        <span>📅 {new Date(article.created_at).toLocaleDateString("zh-TW")}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 ml-4">
+                      <div className="flex gap-2 ml-4">
                       <SendToWordPressDialog articleId={article.id} variant="outline" size="sm" />
                       <Button
                         variant="outline"
