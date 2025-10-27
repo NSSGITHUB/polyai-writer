@@ -194,8 +194,16 @@ const Generator = () => {
             }
 
             const data = await response.json();
-            const generatedText = data?.generatedText as string;
-            if (!generatedText) continue;
+            const generatedText = (data?.generatedText as string) || '';
+            const sanitize = (text: string) =>
+              text
+                .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
+                .replace(/^.*(字數|200\s*[–-]\s*300\s*字|3000\s*字|±10%).*$/gim, '')
+                .replace(/^.*(回應內容|回覆內容|生成內容|以下內容).*$/gim, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            const cleanedText = sanitize(generatedText);
+            if (!cleanedText) continue;
 
             // 儲存每篇文章
             const savePayload = {

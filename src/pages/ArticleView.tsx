@@ -94,13 +94,12 @@ export default function ArticleView() {
 
   const downloadAsPDF = async () => {
     if (!article) return;
-    
+
     setDownloading(true);
     try {
-      // Helper to convert an image URL (http/data/relative) to data URL
+      // Helper: URL -> data URL
       const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' }> => {
-        const resolveUrl = (u: string) =>
-          u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`;
+        const resolveUrl = (u: string) => (u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`);
         const finalUrl = resolveUrl(url);
         if (finalUrl.startsWith('data:')) {
           const mime = finalUrl.substring(5, finalUrl.indexOf(';'));
@@ -120,7 +119,27 @@ export default function ArticleView() {
         return { dataUrl, format };
       };
 
+      // Load and register CJK font to avoid garbled text
+      const fontResp = await fetch('/fonts/NotoSansTC-Regular.ttf');
+      if (!fontResp.ok) throw new Error('NotoSansTC 字型載入失敗');
+      const fontBuf = await fontResp.arrayBuffer();
+      const base64FromArrayBuffer = (buf: ArrayBuffer) => {
+        let binary = '';
+        const bytes = new Uint8Array(buf);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      };
+
+      const fontBase64 = base64FromArrayBuffer(fontBuf);
+
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      // Register font into jsPDF VFS and use it
+      // File name here must match the one used in addFont below
+      (pdf as any).addFileToVFS('NotoSansTC-Regular.ttf', fontBase64);
+      (pdf as any).addFont('NotoSansTC-Regular.ttf', 'NotoSansTC', 'normal');
+      pdf.setFont('NotoSansTC');
+
       let y = 20;
 
       // Title
@@ -137,8 +156,6 @@ export default function ArticleView() {
             ? first.image_url
             : `https://autowriter.ai.com.tw${first.image_url}`;
           const { dataUrl, format } = await toDataUrl(url);
-          // Estimate dimensions (jsPDF doesn't expose getImageProperties in all builds)
-          // We draw the image at max width 180mm, height scaled by 16:9 fallback if unknown
           const img = new Image();
           const dim = await new Promise<{ w: number; h: number }>((resolve) => {
             img.onload = () => resolve({ w: img.width, h: img.height });
@@ -159,6 +176,8 @@ export default function ArticleView() {
       for (const line of contentLines) {
         if (y > 285) {
           pdf.addPage();
+          pdf.setFont('NotoSansTC');
+          pdf.setFontSize(12);
           y = 20;
         }
         pdf.text(line, 15, y);
@@ -167,7 +186,7 @@ export default function ArticleView() {
 
       pdf.save(`${article.title}.pdf`);
     } catch (err) {
-      console.error("PDF 下載失敗:", err);
+      console.error('PDF 下載失敗:', err);
     } finally {
       setDownloading(false);
     }

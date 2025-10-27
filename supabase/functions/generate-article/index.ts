@@ -47,11 +47,30 @@ serve(async (req) => {
       );
     }
 
-    // 根據不同提供商調整prompt
+    // 內文淨化：移除模型常見的「回應前言 / 指令重述 / 字數說明」
+    const sanitize = (text: string) => {
+      let t = text
+        // 移除開頭常見前言
+        .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
+        // 移除包含「字數」說明的整行
+        .replace(/^.*(字數|200\s*[–-]\s*300\s*字|3000\s*字|±10%).*$/gim, '')
+        // 移除「回應內容」等meta字眼
+        .replace(/^.*(回應內容|回覆內容|生成內容|以下內容).*$/gim, '')
+        // 移除多餘括號說明
+        .replace(/（\s*例如.*?）/g, '')
+        .replace(/\(\s*例如.*?\)/g, '')
+        // 收斂多餘空白行
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      // 再次清理開頭殘留的標點與空白
+      t = t.replace(/^(。|，|：|:|\s)+/g, '').trim();
+      return t;
+    };
+
+    // 根據不同提供商調整prompt（禁止回應前言與指令重述）
     const buildPrompt = (provider: string) => {
       let basePrompt = `【重要：字數要求】請以${language}撰寫一篇完整的 SEO 文章，主題為：「${topic}」。\n\n`;
-      
-      // 針對不同AI調整字數要求說明
+
       if (provider === 'google') {
         basePrompt += `【嚴格字數限制】文章總字數必須精確控制在 ${wordCount} 字左右，誤差範圍在±10%以內。絕對不可超過 ${Math.floor(wordCount * 1.15)} 字！\n`;
         basePrompt += `請特別注意：寫作時必須嚴格控制篇幅，達到目標字數後立即結束，不要過度延伸內容。\n\n`;
@@ -59,10 +78,10 @@ serve(async (req) => {
         basePrompt += `【關鍵要求】文章總字數必須達到 ${wordCount} 字，這是最低要求，不可少於此字數！\n`;
         basePrompt += `請注意：${wordCount} 字是必須達到的最低字數，請確保文章內容充實到足以達到此字數要求。\n\n`;
       }
-      
+
       basePrompt += `【風格要求】文章風格為「${style}」。\n\n`;
-      basePrompt += keywords ? `【關鍵字】請自然融入以下關鍵字（勿堆疊）：${keywords}\n\n` : "";
-      basePrompt += outline ? `【大綱參考】可依照此大綱調整結構：\n${outline}\n\n` : "";
+      basePrompt += keywords ? `【關鍵字】請自然融入以下關鍵字（勿堆疊）：${keywords}\n\n` : '';
+      basePrompt += outline ? `【大綱參考】可依照此大綱調整結構：\n${outline}\n\n` : '';
       basePrompt += `【內容要求】\n` +
         `1. 文章結構：開頭引言、多個主體段落（每段200-400字）、結尾總結\n` +
         `2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據、案例和詳細解釋\n` +
@@ -75,15 +94,15 @@ serve(async (req) => {
         `6. 語氣風格：自然流暢、易於閱讀、避免重複贅詞\n` +
         `7. 格式要求：使用純文字格式，不要使用 Markdown 符號如 #、*、-、[]、** 等\n` +
         `8. 內容充實：避免空泛陳述，每個觀點都要有充分的說明、例證和詳細闡述\n` +
-        `9. 字數檢查：寫作時請持續確認字數，確保最終達到目標字數\n\n`;
-      
-      // 針對不同AI的最後強調
+        `9. 字數檢查：寫作時請持續確認字數，確保最終達到目標字數\n\n` +
+        `【輸出規範】僅輸出文章正文內容，不要出現任何開場白、回應說明、指令重述或字數相關語句，也不要說「以下是…」、「好的，這是…」。不要在文中提到「${wordCount} 字」或任何數字範圍說明。`;
+
       if (provider === 'google') {
-        basePrompt += `【最後強調】文章必須控制在 ${wordCount} 字左右（±10%），不要過度擴充內容！`;
+        basePrompt += `\n\n【最後強調】文章必須控制在 ${wordCount} 字左右（±10%），不要過度擴充內容！`;
       } else {
-        basePrompt += `【最後強調】文章必須完整達到 ${wordCount} 字，這是強制要求。請寫得詳細充實，不要過於簡短或概括。`;
+        basePrompt += `\n\n【最後強調】文章必須完整達到 ${wordCount} 字，這是強制要求。請寫得詳細充實，不要過於簡短或概括。`;
       }
-      
+
       return basePrompt;
     };
 
@@ -245,8 +264,10 @@ serve(async (req) => {
       generatedText = data.choices?.[0]?.message?.content ?? "";
     }
 
+    const cleaned = sanitize(generatedText || '');
+
     return new Response(
-      JSON.stringify({ generatedText, provider }),
+      JSON.stringify({ generatedText: cleaned, provider }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
