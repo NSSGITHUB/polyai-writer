@@ -97,32 +97,61 @@ export default function ArticleView() {
 
     setDownloading(true);
     try {
-      // Helper: URL -> data URL
-      const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' }> => {
+      // Helper: URL -> PNG data URL (convert all formats to PNG for jsPDF)
+      const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' }> => {
         const resolveUrl = (u: string) => (u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`);
         const finalUrl = resolveUrl(url);
+
+        // Step 1: obtain a data URL (if already data:, reuse it)
+        let sourceDataUrl: string;
         if (finalUrl.startsWith('data:')) {
-          const mime = finalUrl.substring(5, finalUrl.indexOf(';'));
-          const format = mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : 'PNG';
-          return { dataUrl: finalUrl, format };
+          sourceDataUrl = finalUrl;
+        } else {
+          const res = await fetch(finalUrl);
+          const blob = await res.blob();
+          const reader = new FileReader();
+          const p = new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+          });
+          reader.readAsDataURL(blob);
+          sourceDataUrl = await p;
         }
-        const res = await fetch(finalUrl);
-        const blob = await res.blob();
-        const format = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
-        const reader = new FileReader();
-        const p = new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
+
+        // Step 2: draw to canvas to guarantee PNG output (jsPDF-safe)
+        const img = new Image();
+        const dim = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          img.onload = () => resolve({ w: img.width, h: img.height });
+          img.onerror = reject;
+          img.src = sourceDataUrl;
         });
-        reader.readAsDataURL(blob);
-        const dataUrl = await p;
-        return { dataUrl, format };
+        const canvas = document.createElement('canvas');
+        canvas.width = dim.w;
+        canvas.height = dim.h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(img, 0, 0);
+        const pngDataUrl = canvas.toDataURL('image/png');
+        return { dataUrl: pngDataUrl, format: 'PNG' };
       };
 
-      // Load and register CJK font to avoid garbled text
-      const fontResp = await fetch('/fonts/Unifont.otf');
-      if (!fontResp.ok) throw new Error('Unifont 字型載入失敗');
-      const fontBuf = await fontResp.arrayBuffer();
+      // Load and register CJK font to avoid garbled text (try NotoSansTC first, fallback to Unifont)
+      let fontArrayBuffer: ArrayBuffer | null = null;
+      let vfsFileName = '';
+      let fontName = '';
+      try {
+        const tryNoto = await fetch('/fonts/NotoSansTC-Regular.ttf');
+        if (!tryNoto.ok) throw new Error('NotoSansTC 下載失敗');
+        fontArrayBuffer = await tryNoto.arrayBuffer();
+        vfsFileName = 'NotoSansTC-Regular.ttf';
+        fontName = 'NotoSansTC';
+      } catch (_) {
+        const tryUni = await fetch('/fonts/Unifont.otf');
+        if (!tryUni.ok) throw new Error('Unifont 字型載入失敗');
+        fontArrayBuffer = await tryUni.arrayBuffer();
+        vfsFileName = 'Unifont.otf';
+        fontName = 'Unifont';
+      }
+
       const base64FromArrayBuffer = (buf: ArrayBuffer) => {
         let binary = '';
         const bytes = new Uint8Array(buf);
@@ -131,14 +160,13 @@ export default function ArticleView() {
         return btoa(binary);
       };
 
-      const fontBase64 = base64FromArrayBuffer(fontBuf);
+      const fontBase64 = base64FromArrayBuffer(fontArrayBuffer!);
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       // Register font into jsPDF VFS and use it
-      // File name here must match the one used in addFont below
-      (pdf as any).addFileToVFS('Unifont.otf', fontBase64);
-      (pdf as any).addFont('Unifont.otf', 'Unifont', 'normal');
-      pdf.setFont('Unifont');
+      (pdf as any).addFileToVFS(vfsFileName, fontBase64);
+      (pdf as any).addFont(vfsFileName, fontName, 'normal');
+      pdf.setFont(fontName);
 
       let y = 20;
 
@@ -176,7 +204,7 @@ export default function ArticleView() {
       for (const line of contentLines) {
         if (y > 285) {
           pdf.addPage();
-          pdf.setFont('Unifont');
+          pdf.setFont(fontName);
           pdf.setFontSize(12);
           y = 20;
         }
