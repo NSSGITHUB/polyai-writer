@@ -94,9 +94,10 @@ export default function ImageGallery() {
                   <Card key={image.id} className="overflow-hidden">
                     <div className="aspect-square bg-muted relative">
                       <img 
-                        src={image.image_url} 
+                        src={image.image_url?.startsWith('http') ? image.image_url : `https://autowriter.ai.com.tw${image.image_url}`}
                         alt={image.prompt}
                         className="w-full h-full object-cover"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                     </div>
                     <CardContent className="p-4">
@@ -115,7 +116,7 @@ export default function ImageGallery() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownload(image.image_url, image.prompt)}
+                        onClick={() => handleDownload(image.image_url?.startsWith('http') ? image.image_url : `https://autowriter.ai.com.tw${image.image_url}`, image.prompt)}
                         className="w-full"
                       >
                         <Download className="mr-2 h-3 w-3" />

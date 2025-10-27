@@ -16,7 +16,7 @@ const Generator = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
-  const [results, setResults] = useState<Array<{provider: string, content: string, articleId?: number}>>([]);
+  const [results, setResults] = useState<Array<{provider: string, content: string, articleId?: number, imageUrl?: string}>>([]);
   const [batchMode, setBatchMode] = useState(false);
   const [batchCount, setBatchCount] = useState(5);
   const [autoGenerateImage, setAutoGenerateImage] = useState(true);
@@ -133,7 +133,7 @@ const Generator = () => {
     if (formData.selectedModels.anthropic) selectedProviders.push("anthropic");
     if (formData.selectedModels.xai) selectedProviders.push("xai");
 
-    const generatedArticles: Array<{provider: string, content: string, articleId?: number}> = [];
+    const generatedArticles: Array<{provider: string, content: string, articleId?: number, imageUrl?: string}> = [];
 
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -223,6 +223,7 @@ const Generator = () => {
             });
 
             let articleId: number | undefined;
+            let savedImageUrl: string | undefined;
             if (saveResponse.ok) {
               const saveData = await saveResponse.json();
               articleId = saveData.id;
@@ -262,12 +263,14 @@ const Generator = () => {
                       }),
                     });
                     
-                    if (saveImageResponse.ok) {
-                      console.log('圖片已成功保存');
-                      toast({
-                        title: "圖片已生成",
-                        description: "文章配圖已自動生成並保存",
-                      });
+                      if (saveImageResponse.ok) {
+                        const saved = await saveImageResponse.json().catch(() => null);
+                        savedImageUrl = saved?.image_url || imageData.imageUrl;
+                        console.log('圖片已成功保存:', savedImageUrl);
+                        toast({
+                          title: "圖片已生成",
+                          description: "文章配圖已自動生成並保存",
+                        });
                     } else {
                       console.error('保存圖片失敗');
                     }
@@ -340,7 +343,8 @@ const Generator = () => {
             generatedArticles.push({
               provider: provider.toUpperCase(),
               content: generatedText,
-              articleId
+              articleId,
+              imageUrl: savedImageUrl
             });
             
             articleIndex++;
@@ -816,6 +820,16 @@ const Generator = () => {
                     </Button>
                   )}
                 </div>
+                {article.imageUrl && (
+                  <div className="mb-4">
+                    <img
+                      src={article.imageUrl}
+                      alt={`${article.provider} 生成配圖`}
+                      className="w-full max-h-64 object-cover rounded border"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  </div>
+                )}
                 <Textarea readOnly value={article.content} className="min-h-[300px]" />
               </Card>
             ))}
