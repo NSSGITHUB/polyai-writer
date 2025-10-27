@@ -21,6 +21,9 @@ $provider = $data['provider'] ?? '';
 $topic = $data['topic'] ?? '';
 $keywords = $data['keywords'] ?? '';
 $outline = $data['outline'] ?? '';
+$targetAudience = $data['targetAudience'] ?? '';
+$searchIntent = $data['searchIntent'] ?? '';
+$contentRequirements = $data['contentRequirements'] ?? '';
 $language = $data['language'] ?? 'zh-TW';
 $style = $data['style'] ?? 'professional';
 $wordCount = $data['wordCount'] ?? 1000;
@@ -70,7 +73,7 @@ function cleanMarkdown($text) {
 }
 
 // 建構 prompt - 根據不同提供商調整
-function buildPrompt($provider, $language, $topic, $style, $keywords, $outline, $wordCount) {
+function buildPrompt($provider, $language, $topic, $style, $keywords, $outline, $wordCount, $targetAudience, $searchIntent, $contentRequirements) {
     $basePrompt = "【重要：字數要求】請以{$language}撰寫一篇完整的 SEO 文章，主題為：「{$topic}」。\n\n";
     
     // 針對不同AI調整字數要求說明
@@ -84,6 +87,14 @@ function buildPrompt($provider, $language, $topic, $style, $keywords, $outline, 
     
     $basePrompt .= "【風格要求】文章風格為「{$style}」。\n\n";
     
+    if (!empty($targetAudience)) {
+        $basePrompt .= "【目標受眾】{$targetAudience}\n\n";
+    }
+    
+    if (!empty($searchIntent)) {
+        $basePrompt .= "【搜尋意圖】{$searchIntent}\n\n";
+    }
+    
     if (!empty($keywords)) {
         $basePrompt .= "【關鍵字】請自然融入以下關鍵字（勿堆疊）：{$keywords}\n\n";
     }
@@ -92,7 +103,11 @@ function buildPrompt($provider, $language, $topic, $style, $keywords, $outline, 
         $basePrompt .= "【大綱參考】可依照此大綱調整結構：\n{$outline}\n\n";
     }
     
-    $basePrompt .= "【內容要求】\n";
+    if (!empty($contentRequirements)) {
+        $basePrompt .= "【內容要求】\n{$contentRequirements}\n\n";
+    }
+    
+    $basePrompt .= "【文章撰寫規範】\n";
     $basePrompt .= "1. 文章結構：開頭引言、多個主體段落（每段200-400字）、結尾總結\n";
     $basePrompt .= "2. 內容深度：每個要點都要充分展開說明，提供具體事例、數據、案例和詳細解釋\n";
     $basePrompt .= "3. 段落安排：根據字數要求調整段落數量，確保每段都有實質內容\n";
@@ -116,7 +131,7 @@ function buildPrompt($provider, $language, $topic, $style, $keywords, $outline, 
     return $basePrompt;
 }
 
-$prompt = buildPrompt($provider, $language, $topic, $style, $keywords, $outline, $wordCount);
+$prompt = buildPrompt($provider, $language, $topic, $style, $keywords, $outline, $wordCount, $targetAudience, $searchIntent, $contentRequirements);
 
 $generatedText = '';
 

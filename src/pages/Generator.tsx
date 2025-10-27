@@ -38,6 +38,9 @@ const Generator = () => {
     topic: "",
     keywords: "",
     outline: "",
+    targetAudience: "",
+    searchIntent: "",
+    contentRequirements: "",
     language: "zh-TW",
     style: "professional",
     wordCount: "1000",
@@ -148,6 +151,9 @@ const Generator = () => {
                 topic: formData.topic,
                 keywords: formData.keywords,
                 outline: formData.outline,
+                targetAudience: formData.targetAudience,
+                searchIntent: formData.searchIntent,
+                contentRequirements: formData.contentRequirements,
                 language: formData.language,
                 style: formData.style,
                 wordCount: Number(formData.wordCount),
@@ -211,6 +217,7 @@ const Generator = () => {
               // 自動生成圖片
               if (autoGenerateImage && articleId) {
                 try {
+                  console.log(`開始為文章 ${articleId} 生成圖片...`);
                   const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-image', {
                     body: { 
                       prompt: `為文章「${formData.topic}」生成一張專業、高質量的配圖，風格現代簡潔`, 
@@ -220,9 +227,15 @@ const Generator = () => {
 
                   if (imageError) {
                     console.error('圖片生成失敗:', imageError);
+                    toast({
+                      title: "圖片生成失敗",
+                      description: imageError.message || "無法生成圖片",
+                      variant: "destructive",
+                    });
                   } else if (imageData?.imageUrl) {
+                    console.log('圖片生成成功，正在保存...');
                     // 保存圖片到資料庫
-                    await fetch(`${API_BASE_URL}/save-image.php`, {
+                    const saveImageResponse = await fetch(`${API_BASE_URL}/save-image.php`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
@@ -234,9 +247,26 @@ const Generator = () => {
                         height: 1024,
                       }),
                     });
+                    
+                    if (saveImageResponse.ok) {
+                      console.log('圖片已成功保存');
+                      toast({
+                        title: "圖片已生成",
+                        description: "文章配圖已自動生成並保存",
+                      });
+                    } else {
+                      console.error('保存圖片失敗');
+                    }
+                  } else {
+                    console.warn('未收到圖片URL');
                   }
                 } catch (imgError) {
                   console.error('圖片處理錯誤:', imgError);
+                  toast({
+                    title: "圖片處理錯誤",
+                    description: imgError instanceof Error ? imgError.message : "未知錯誤",
+                    variant: "destructive",
+                  });
                 }
               }
 
@@ -398,6 +428,43 @@ const Generator = () => {
                   value={formData.outline}
                   onChange={(e) => setFormData({ ...formData, outline: e.target.value })}
                 />
+              </div>
+
+              {/* 結構化內容提示 */}
+              <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-background/30">
+                <h3 className="font-semibold text-lg">文章內容規格（選填）</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="targetAudience">目標受眾</Label>
+                  <Input
+                    id="targetAudience"
+                    placeholder="例如：中小企業主、網站管理員、IT決策者"
+                    value={formData.targetAudience}
+                    onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="searchIntent">搜尋意圖</Label>
+                  <Textarea
+                    id="searchIntent"
+                    placeholder="例如：使用者想要比較不同企業主機方案的規格、價格與服務，並做出最佳選擇"
+                    className="min-h-[80px]"
+                    value={formData.searchIntent}
+                    onChange={(e) => setFormData({ ...formData, searchIntent: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contentRequirements">內容要求</Label>
+                  <Textarea
+                    id="contentRequirements"
+                    placeholder="例如：&#10;1. 比較表格：製作清晰的表格，比較不同主機方案的CPU、RAM、儲存空間、流量限制、價格&#10;2. 數據佐證：加入市場調查數據、效能測試結果、客戶滿意度統計"
+                    className="min-h-[120px]"
+                    value={formData.contentRequirements}
+                    onChange={(e) => setFormData({ ...formData, contentRequirements: e.target.value })}
+                  />
+                </div>
               </div>
 
               {/* Settings Row */}
