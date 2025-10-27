@@ -33,16 +33,24 @@ serve(async (req) => {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image-preview',
+          messages: [
+            {
+              role: 'system',
+              content: [
+                { type: 'text', text: 'You are an image generation model. Always return an image in message.images and avoid plain text responses.' }
+              ]
+            },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt }
+              ]
+            }
+          ],
+          modalities: ['image', 'text']
+        }),
     });
 
     if (!response.ok) {
