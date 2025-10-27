@@ -120,8 +120,8 @@ export default function ArticleView() {
       };
 
       // Load and register CJK font to avoid garbled text
-      const fontResp = await fetch('/fonts/NotoSansTC-Regular.ttf');
-      if (!fontResp.ok) throw new Error('NotoSansTC 字型載入失敗');
+      const fontResp = await fetch('/fonts/Unifont.otf');
+      if (!fontResp.ok) throw new Error('Unifont 字型載入失敗');
       const fontBuf = await fontResp.arrayBuffer();
       const base64FromArrayBuffer = (buf: ArrayBuffer) => {
         let binary = '';
@@ -136,9 +136,9 @@ export default function ArticleView() {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       // Register font into jsPDF VFS and use it
       // File name here must match the one used in addFont below
-      (pdf as any).addFileToVFS('NotoSansTC-Regular.ttf', fontBase64);
-      (pdf as any).addFont('NotoSansTC-Regular.ttf', 'NotoSansTC', 'normal');
-      pdf.setFont('NotoSansTC');
+      (pdf as any).addFileToVFS('Unifont.otf', fontBase64);
+      (pdf as any).addFont('Unifont.otf', 'Unifont', 'normal');
+      pdf.setFont('Unifont');
 
       let y = 20;
 
@@ -176,7 +176,7 @@ export default function ArticleView() {
       for (const line of contentLines) {
         if (y > 285) {
           pdf.addPage();
-          pdf.setFont('NotoSansTC');
+          pdf.setFont('Unifont');
           pdf.setFontSize(12);
           y = 20;
         }
