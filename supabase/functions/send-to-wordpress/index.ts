@@ -103,6 +103,10 @@ serve(async (req) => {
           featuredImageUrl = imageData.data[0].image_url;
         }
       }
+      // 轉為絕對網址，避免相對路徑導致上傳/顯示失敗
+      if (featuredImageUrl && !/^https?:\/\//i.test(featuredImageUrl)) {
+        featuredImageUrl = `https://autowriter.ai.com.tw${featuredImageUrl}`;
+      }
     } catch (error) {
       console.error('Error fetching article image:', error);
     }

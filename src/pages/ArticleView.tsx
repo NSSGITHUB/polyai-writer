@@ -297,38 +297,65 @@ export default function ArticleView() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* 文章配圖 */}
-            {images.length > 0 && (
-              <div className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {images.map((image) => {
-                    // 確保使用完整URL
-                    const imageUrl = image.image_url.startsWith('http') 
-                      ? image.image_url 
-                      : `https://autowriter.ai.com.tw${image.image_url}`;
-                    
-                    return (
-                      <div key={image.id} className="rounded-lg overflow-hidden border">
-                        <img 
-                          src={imageUrl} 
-                          alt={image.prompt}
-                          className="w-full h-auto object-cover"
-                          onError={(e) => {
-                            console.error('圖片載入失敗:', imageUrl);
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <div className="p-2 bg-muted text-xs text-muted-foreground">
-                          {image.prompt}
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* 文章配圖：首圖置頂，文字一起顯示，其餘做為圖集 */}
+            {images.length > 0 && (() => {
+              const first = images[0];
+              const rest = images.slice(1);
+              const firstUrl = first.image_url.startsWith('http') 
+                ? first.image_url 
+                : `https://autowriter.ai.com.tw${first.image_url}`;
+              return (
+                <div className="mb-6">
+                  <figure className="rounded-lg overflow-hidden border">
+                    <img
+                      src={firstUrl}
+                      alt={first.prompt || article.title}
+                      className="w-full h-auto object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        console.error('圖片載入失敗:', firstUrl);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    {first.prompt && (
+                      <figcaption className="p-2 bg-muted text-xs text-muted-foreground">
+                        {first.prompt}
+                      </figcaption>
+                    )}
+                  </figure>
+                  {rest.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {rest.map((image) => {
+                        const url = image.image_url.startsWith('http') 
+                          ? image.image_url 
+                          : `https://autowriter.ai.com.tw${image.image_url}`;
+                        return (
+                          <div key={image.id} className="rounded-lg overflow-hidden border">
+                            <img
+                              src={url}
+                              alt={image.prompt || article.title}
+                              className="w-full h-auto object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                console.error('圖片載入失敗:', url);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            {image.prompt && (
+                              <div className="p-2 bg-muted text-xs text-muted-foreground">
+                                {image.prompt}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Separator className="my-6" />
                 </div>
-                <Separator className="my-6" />
-              </div>
-            )}
-            
+              );
+            })()}
+
             <div className="prose prose-slate dark:prose-invert max-w-none">
               <div className="whitespace-pre-wrap leading-relaxed">
                 {article.content}
