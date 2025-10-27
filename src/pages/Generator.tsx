@@ -155,12 +155,8 @@ const Generator = () => {
           try {
             // 生成文章
             const articleNumber = batchMode ? ` 第${i + 1}篇` : '';
-            const response = await fetch(`${API_BASE_URL}/generate-article.php`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
+            const { data, error } = await supabase.functions.invoke('generate-article', {
+              body: {
                 topic: formData.topic,
                 keywords: formData.keywords,
                 outline: formData.outline,
@@ -171,29 +167,20 @@ const Generator = () => {
                 style: formData.style,
                 wordCount: Number(formData.wordCount),
                 provider,
-              }),
+              }
             });
 
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              const message = errorData.error || `${provider} 產生失敗 (HTTP ${response.status})`;
-              
-              console.error(`${provider} 生成錯誤:`, {
-                status: response.status,
-                error: errorData,
-                provider
-              });
-              
+            if (error) {
+              console.error(`${provider} 生成錯誤:`, error);
               toast({
                 title: `${provider.toUpperCase()} 產生失敗`,
-                description: message,
-                variant: "destructive",
+                description: error.message || 'AI 服務錯誤',
+                variant: 'destructive',
                 duration: 8000,
               });
               continue;
             }
 
-            const data = await response.json();
             const generatedText = (data?.generatedText as string) || '';
             const sanitize = (text: string) =>
               text

@@ -57,6 +57,13 @@ export default function ArticleView() {
   const [seoScore, setSeoScore] = useState<SeoScore | null>(null);
   const [downloading, setDownloading] = useState(false);
 
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const toProxied = (u: string) => {
+    const abs = u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`;
+    if (abs.startsWith('http')) return `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}`;
+    return abs;
+  };
+
   const downloadAsWord = async () => {
     if (!article) return;
     
@@ -99,8 +106,8 @@ export default function ArticleView() {
     try {
       // Helper: URL -> PNG data URL (convert all formats to PNG for jsPDF)
       const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' }> => {
-        const resolveUrl = (u: string) => (u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`);
-        const finalUrl = resolveUrl(url);
+        const abs = url.startsWith('http') || url.startsWith('data:') ? url : `https://autowriter.ai.com.tw${url}`;
+        const finalUrl = abs.startsWith('http') ? `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}` : abs;
 
         // Step 1: obtain a data URL (if already data:, reuse it)
         let sourceDataUrl: string;
@@ -383,9 +390,7 @@ export default function ArticleView() {
             {images.length > 0 && (() => {
               const first = images[0];
               const rest = images.slice(1);
-               const firstUrl = first.image_url.startsWith('http') || first.image_url.startsWith('data:') 
-                ? first.image_url 
-                : `https://autowriter.ai.com.tw${first.image_url}`;
+               const firstUrl = toProxied(first.image_url);
               return (
                 <div className="mb-6">
                   <figure className="rounded-lg overflow-hidden border">
@@ -408,9 +413,7 @@ export default function ArticleView() {
                   {rest.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                       {rest.map((image) => {
-                         const url = image.image_url.startsWith('http') || image.image_url.startsWith('data:') 
-                          ? image.image_url 
-                          : `https://autowriter.ai.com.tw${image.image_url}`;
+                         const url = toProxied(image.image_url);
                         return (
                           <div key={image.id} className="rounded-lg overflow-hidden border">
                             <img

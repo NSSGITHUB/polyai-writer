@@ -39,7 +39,12 @@ const setMeta = (title: string, description: string) => {
   if (meta) meta.setAttribute("content", description);
 };
 
-const resolveUrl = (u: string) => (u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`);
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const toProxiedUrl = (u: string) => {
+  const abs = u.startsWith('http') || u.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`;
+  if (abs.startsWith('http')) return `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}`;
+  return abs;
+};
 
 function ArticleThumb({ id, title }: { id: number; title: string }) {
   const [thumb, setThumb] = useState<string | null>(null);
@@ -51,7 +56,7 @@ function ArticleThumb({ id, title }: { id: number; title: string }) {
         const data = await res.json();
         const first = data?.success && data?.data && data.data[0];
         if (!aborted && first?.image_url) {
-          setThumb(resolveUrl(first.image_url));
+          setThumb(toProxiedUrl(first.image_url));
         }
       } catch (e) {
         console.warn('縮圖載入失敗:', e);
