@@ -209,7 +209,7 @@ serve(async (req) => {
 
           const postBody: any = {
             title: cleanTitle,
-            content: featuredImageUrl ? `<p><img src="${featuredImageUrl}" alt="${cleanTitle}" /></p>\n\n${article.content}` : article.content,
+            content: article.content,
             status: status,
             excerpt: article.excerpt || '',
             date: new Date().toISOString(),
