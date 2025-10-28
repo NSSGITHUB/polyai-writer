@@ -268,6 +268,8 @@ const Generator = () => {
                         });
                     } else {
                       console.error('保存圖片失敗');
+                      // 即使保存失敗，也先在前端顯示生成的圖片
+                      savedImageUrl = imageData.imageUrl;
                     }
                   } else {
                     console.warn('未收到圖片URL');
