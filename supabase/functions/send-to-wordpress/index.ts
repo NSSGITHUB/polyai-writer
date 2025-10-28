@@ -90,8 +90,11 @@ serve(async (req) => {
     const article = articleData.data;
     console.log(`Article fetched: ${article.title}`);
     
-    // 清理標題，移除 AI 提供者標記
-    const cleanTitle = article.title.replace(/\s*\((GOOGLE|OPENAI|ANTHROPIC|GEMINI|GPT|CLAUDE)\)\s*$/i, '').trim();
+    // 清理標題，移除 AI 提供者標記和批次序號（第1篇、第2篇等）
+    const cleanTitle = article.title
+      .replace(/\s*\((GOOGLE|OPENAI|ANTHROPIC|GEMINI|GPT|CLAUDE)\)\s*$/i, '')
+      .replace(/\s*第\d+篇\s*/g, '')
+      .trim();
 
     // 獲取文章的圖片（如果有）
     let featuredImageUrl = null;

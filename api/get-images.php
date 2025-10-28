@@ -96,6 +96,7 @@ try {
     echo json_encode([
         'success' => true,
         'images' => $images,
+        'data' => $images, // 新增：為了相容 ImageGallery 的查詢
         'total' => (int)$total,
         'limit' => $limit,
         'offset' => $offset
