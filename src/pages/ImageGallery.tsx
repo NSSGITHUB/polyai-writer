@@ -6,6 +6,13 @@ import { ArrowLeft, Download, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/lib/api";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const toUrl = (u: string) => {
+  const abs = u?.startsWith('http') || u?.startsWith('data:') ? u : `https://autowriter.ai.com.tw${u}`;
+  if (abs?.startsWith('http')) return `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}`;
+  return abs;
+};
+
 interface ImageRecord {
   id: string;
   article_id: number | null;
@@ -94,7 +101,7 @@ export default function ImageGallery() {
                   <Card key={image.id} className="overflow-hidden">
                     <div className="aspect-square bg-muted relative">
                       <img 
-                        src={image.image_url?.startsWith('http') ? image.image_url : `https://autowriter.ai.com.tw${image.image_url}`}
+                        src={toUrl(image.image_url)}
                         alt={image.prompt}
                         className="w-full h-full object-cover"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -116,7 +123,7 @@ export default function ImageGallery() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownload(image.image_url?.startsWith('http') ? image.image_url : `https://autowriter.ai.com.tw${image.image_url}`, image.prompt)}
+                        onClick={() => handleDownload(toUrl(image.image_url), image.prompt)}
                         className="w-full"
                       >
                         <Download className="mr-2 h-3 w-3" />
