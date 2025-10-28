@@ -21,86 +21,64 @@ serve(async (req) => {
       );
     }
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Generating image with OpenAI, prompt:', prompt);
+    console.log('Generating image with Lovable AI, prompt:', prompt);
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt,
-        size: '1024x1024',
-        n: 1
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        modalities: ['image', 'text']
       }),
     });
 
-    let data: any;
-
     if (!response.ok) {
-      // Try to parse error for fallback
       const errText = await response.text();
-      console.error('OpenAI image generation error:', response.status, errText);
-      let errJson: any = null;
-      try { errJson = JSON.parse(errText); } catch {}
-
-      const errMsg: string = errJson?.error?.message || '';
-
-      // Fallback: if gpt-image-1 is not allowed (org not verified), try DALL·E 3
-      if (response.status === 403 && errMsg.includes('gpt-image-1')) {
-        console.log('Falling back to DALL·E 3');
-        const dalleResp = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'dall-e-3',
-            prompt,
-            size: '1024x1024',
-            n: 1,
-            response_format: 'b64_json'
-          }),
-        });
-
-        if (!dalleResp.ok) {
-          const t = await dalleResp.text();
-          console.error('DALL·E 3 image generation error:', dalleResp.status, t);
-          return new Response(
-            JSON.stringify({ error: 'AI 服務錯誤', details: t }),
-            { status: dalleResp.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        data = await dalleResp.json();
-      } else {
+      console.error('Lovable AI image generation error:', response.status, errText);
+      
+      if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'AI 服務錯誤', details: errText }),
-          { status: response.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: '請求過於頻繁，請稍後再試' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
-      data = await response.json();
+      
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: '配額不足，請聯繫管理員' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: 'AI 服務錯誤', details: errText }),
+        { status: response.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const b64 = data?.data?.[0]?.b64_json;
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-    if (!b64) {
-      console.error('No base64 image returned:', JSON.stringify(data));
+    if (!imageUrl) {
+      console.error('No image returned:', JSON.stringify(data));
       throw new Error('未能獲取圖片資料');
     }
 
-    const imageUrl = `data:image/png;base64,${b64}`;
-
-    console.log('Image generated successfully via OpenAI');
+    console.log('Image generated successfully via Lovable AI');
 
     return new Response(
       JSON.stringify({ 
