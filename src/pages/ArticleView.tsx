@@ -11,6 +11,7 @@ import { analyzeSeo, getScoreColor, getScoreLabel, type SeoScore } from "@/lib/s
 import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
 
@@ -104,88 +105,42 @@ export default function ArticleView() {
 
     setDownloading(true);
     try {
-      // Helper: URL -> PNG data URL (convert all formats to PNG for jsPDF)
-      const toDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' }> => {
-        const abs = url.startsWith('http') || url.startsWith('data:') ? url : `https://autowriter.ai.com.tw${url}`;
-        const finalUrl = abs.startsWith('http') ? `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}` : abs;
+      // 使用 html2canvas 將文章內容轉換為圖片，這樣可以保留所有樣式和中文字體
+      const element = document.getElementById('article-content');
+      if (!element) throw new Error('找不到文章內容元素');
 
-        // Step 1: obtain a data URL (if already data:, reuse it)
-        let sourceDataUrl: string;
-        if (finalUrl.startsWith('data:')) {
-          sourceDataUrl = finalUrl;
-        } else {
-          const res = await fetch(finalUrl);
-          const blob = await res.blob();
-          const reader = new FileReader();
-          const p = new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-          });
-          reader.readAsDataURL(blob);
-          sourceDataUrl = await p;
-        }
+      const canvas = await html2canvas(element, {
+        scale: 2, // 提高清晰度
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
 
-        // Step 2: draw to canvas to guarantee PNG output (jsPDF-safe)
-        const img = new Image();
-        const dim = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-          img.onload = () => resolve({ w: img.width, h: img.height });
-          img.onerror = reject;
-          img.src = sourceDataUrl;
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = dim.w;
-        canvas.height = dim.h;
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.drawImage(img, 0, 0);
-        const pngDataUrl = canvas.toDataURL('image/png');
-        return { dataUrl: pngDataUrl, format: 'PNG' };
-      };
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-      // 暫時跳過字體加載，使用 jsPDF 默認字體
-      // 注意：中文可能無法正確顯示，需要手動添加字體文件
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
 
-      let y = 20;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-      // Title
-      pdf.setFontSize(18);
-      const titleLines = pdf.splitTextToSize(article.title, 180);
-      pdf.text(titleLines, 15, y);
-      y += titleLines.length * 8 + 4;
+      // 添加第一頁
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
 
-      // First image if available
-      if (images.length > 0) {
-        try {
-          const first = images[0];
-          const url = first.image_url.startsWith('http') || first.image_url.startsWith('data:')
-            ? first.image_url
-            : `https://autowriter.ai.com.tw${first.image_url}`;
-          const { dataUrl, format } = await toDataUrl(url);
-          const img = new Image();
-          const dim = await new Promise<{ w: number; h: number }>((resolve) => {
-            img.onload = () => resolve({ w: img.width, h: img.height });
-            img.src = dataUrl;
-          });
-          const maxW = 180;
-          const h = (dim.h * maxW) / dim.w;
-          pdf.addImage(dataUrl, format, 15, y, maxW, h);
-          y += h + 8;
-        } catch (e) {
-          console.warn('PDF 圖片嵌入失敗，將僅輸出文字', e);
-        }
-      }
-
-      // Content text
-      pdf.setFontSize(12);
-      const contentLines = pdf.splitTextToSize(article.content, 180);
-      for (const line of contentLines) {
-        if (y > 285) {
-          pdf.addPage();
-          pdf.setFontSize(12);
-          y = 20;
-        }
-        pdf.text(line, 15, y);
-        y += 6;
+      // 如果內容超過一頁，添加更多頁面
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
       pdf.save(`${article.title}.pdf`);
