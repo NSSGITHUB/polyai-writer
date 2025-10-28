@@ -42,28 +42,55 @@ serve(async (req) => {
       }),
     });
 
+    let data: any;
+
     if (!response.ok) {
-      if (response.status === 429) {
+      // Try to parse error for fallback
+      const errText = await response.text();
+      console.error('OpenAI image generation error:', response.status, errText);
+      let errJson: any = null;
+      try { errJson = JSON.parse(errText); } catch {}
+
+      const errMsg: string = errJson?.error?.message || '';
+
+      // Fallback: if gpt-image-1 is not allowed (org not verified), try DALL·E 3
+      if (response.status === 403 && errMsg.includes('gpt-image-1')) {
+        console.log('Falling back to DALL·E 3');
+        const dalleResp = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'dall-e-3',
+            prompt,
+            size: '1024x1024',
+            n: 1,
+            response_format: 'b64_json'
+          }),
+        });
+
+        if (!dalleResp.ok) {
+          const t = await dalleResp.text();
+          console.error('DALL·E 3 image generation error:', dalleResp.status, t);
+          return new Response(
+            JSON.stringify({ error: 'AI 服務錯誤', details: t }),
+            { status: dalleResp.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        data = await dalleResp.json();
+      } else {
         return new Response(
-          JSON.stringify({ error: '請求過於頻繁，請稍後再試' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'AI 服務錯誤', details: errText }),
+          { status: response.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: '需要充值，請到設定中添加額度' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('OpenAI image generation error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'AI 服務錯誤', details: errorText }),
-        { status: response.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    } else {
+      data = await response.json();
     }
 
-    const data = await response.json();
     const b64 = data?.data?.[0]?.b64_json;
 
     if (!b64) {
