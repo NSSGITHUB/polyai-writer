@@ -141,39 +141,9 @@ export default function ArticleView() {
         return { dataUrl: pngDataUrl, format: 'PNG' };
       };
 
-      // Load and register CJK font to avoid garbled text (try NotoSansTC first, fallback to Unifont)
-      let fontArrayBuffer: ArrayBuffer | null = null;
-      let vfsFileName = '';
-      let fontName = '';
-      try {
-        const tryNoto = await fetch('/fonts/NotoSansTC-Regular.ttf');
-        if (!tryNoto.ok) throw new Error('NotoSansTC 下載失敗');
-        fontArrayBuffer = await tryNoto.arrayBuffer();
-        vfsFileName = 'NotoSansTC-Regular.ttf';
-        fontName = 'NotoSansTC';
-      } catch (_) {
-        const tryUni = await fetch('/fonts/Unifont.otf');
-        if (!tryUni.ok) throw new Error('Unifont 字型載入失敗');
-        fontArrayBuffer = await tryUni.arrayBuffer();
-        vfsFileName = 'Unifont.otf';
-        fontName = 'Unifont';
-      }
-
-      const base64FromArrayBuffer = (buf: ArrayBuffer) => {
-        let binary = '';
-        const bytes = new Uint8Array(buf);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-        return btoa(binary);
-      };
-
-      const fontBase64 = base64FromArrayBuffer(fontArrayBuffer!);
-
+      // 暫時跳過字體加載，使用 jsPDF 默認字體
+      // 注意：中文可能無法正確顯示，需要手動添加字體文件
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      // Register font into jsPDF VFS and use it
-      (pdf as any).addFileToVFS(vfsFileName, fontBase64);
-      (pdf as any).addFont(vfsFileName, fontName, 'normal');
-      pdf.setFont(fontName);
 
       let y = 20;
 
@@ -211,7 +181,6 @@ export default function ArticleView() {
       for (const line of contentLines) {
         if (y > 285) {
           pdf.addPage();
-          pdf.setFont(fontName);
           pdf.setFontSize(12);
           y = 20;
         }
