@@ -188,7 +188,7 @@ ${outline}
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4.1-2025-04-14",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements. Make sure to write fully detailed content to reach the target word count." },
             { role: "user", content: prompt },
