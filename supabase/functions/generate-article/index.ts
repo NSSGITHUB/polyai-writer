@@ -188,7 +188,7 @@ ${outline}
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
+          model: "gpt-4.1-2025-04-14",
           messages: [
             { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements. Make sure to write fully detailed content to reach the target word count." },
             { role: "user", content: prompt },
@@ -221,7 +221,7 @@ ${outline}
       }
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GOOGLE_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GOOGLE_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
