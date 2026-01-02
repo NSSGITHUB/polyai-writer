@@ -21,12 +21,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Trash2, RefreshCw, Calendar, List } from "lucide-react";
 import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { zhTW } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
+import { ScheduleCalendar } from "@/components/ScheduleCalendar";
 
 interface ScheduledPost {
   id: string;
@@ -47,6 +49,7 @@ export default function ScheduledPosts() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [articleTitles, setArticleTitles] = useState<Record<number, string>>({});
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   useEffect(() => {
     checkAuth();
@@ -79,7 +82,7 @@ export default function ScheduledPosts() {
             url
           )
         `)
-        .order("scheduled_time", { ascending: false });
+        .order("scheduled_time", { ascending: true });
 
       if (error) throw error;
 
@@ -196,79 +199,102 @@ export default function ScheduledPosts() {
             <Button onClick={() => navigate("/articles")}>前往文章管理</Button>
           </div>
         ) : (
-          <div className="bg-card rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>文章</TableHead>
-                  <TableHead>站點</TableHead>
-                  <TableHead>排程時間</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>建立時間</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {posts.map((post) => (
-                  <TableRow key={post.id}>
-                    <TableCell className="font-medium">
-                      {articleTitles[post.article_id] || `文章 #${post.article_id}`}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{post.site_name}</div>
-                        <div className="text-xs text-muted-foreground">{post.site_url}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {post.scheduled_time
-                        ? format(toZonedTime(new Date(post.scheduled_time), 'Asia/Taipei'), "yyyy/MM/dd HH:mm", { locale: zhCN }) + " (台北時間)"
-                        : "立即發送"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {getStatusBadge(post.status)}
-                        {post.error_message && (
-                          <p className="text-xs text-destructive">{post.error_message}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(post.created_at), "yyyy/MM/dd HH:mm", { locale: zhCN })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {post.status === "scheduled" && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>確認刪除</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                確定要刪除這個排程嗎？此操作無法撤銷。
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>取消</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(post.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                刪除
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="calendar" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                行事曆
+              </TabsTrigger>
+              <TabsTrigger value="list" className="gap-2">
+                <List className="h-4 w-4" />
+                列表
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="calendar">
+              <ScheduleCalendar
+                posts={posts}
+                articleTitles={articleTitles}
+                onDelete={handleDelete}
+              />
+            </TabsContent>
+
+            <TabsContent value="list">
+              <div className="bg-card rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>文章</TableHead>
+                      <TableHead>站點</TableHead>
+                      <TableHead>排程時間</TableHead>
+                      <TableHead>狀態</TableHead>
+                      <TableHead>建立時間</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {posts.map((post) => (
+                      <TableRow key={post.id}>
+                        <TableCell className="font-medium">
+                          {articleTitles[post.article_id] || `文章 #${post.article_id}`}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{post.site_name}</div>
+                            <div className="text-xs text-muted-foreground">{post.site_url}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {post.scheduled_time
+                            ? format(toZonedTime(new Date(post.scheduled_time), 'Asia/Taipei'), "yyyy/MM/dd HH:mm", { locale: zhTW }) + " (台北時間)"
+                            : "立即發送"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {getStatusBadge(post.status)}
+                            {post.error_message && (
+                              <p className="text-xs text-destructive">{post.error_message}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(post.created_at), "yyyy/MM/dd HH:mm", { locale: zhTW })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {post.status === "scheduled" && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>確認刪除</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    確定要刪除這個排程嗎？此操作無法撤銷。
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>取消</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(post.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    刪除
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </div>
