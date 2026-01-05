@@ -47,9 +47,27 @@ serve(async (req) => {
       );
     }
 
-    // 內文淨化：移除模型常見的「回應前言 / 指令重述 / 字數說明」
+    // 內文淨化：移除 Markdown 格式和模型常見的回應前言
     const sanitize = (text: string) => {
       let t = text
+        // 移除 Markdown 標題符號 (# ## ### 等)
+        .replace(/^#{1,6}\s+/gm, '')
+        // 移除粗體和斜體 (** __ * _)
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        // 移除行內程式碼
+        .replace(/`([^`]+)`/g, '$1')
+        // 移除列表符號 (- * + 數字.)
+        .replace(/^[\s]*[-*+]\s+/gm, '')
+        .replace(/^[\s]*\d+\.\s+/gm, '')
+        // 移除連結格式 [text](url)
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // 移除圖片格式 ![alt](url)
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+        // 移除水平線
+        .replace(/^[-*_]{3,}$/gm, '')
         // 移除開頭常見前言
         .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
         // 移除包含「字數」說明的整行
@@ -190,10 +208,11 @@ ${outline}
         body: JSON.stringify({
           model: "gpt-4o",
           messages: [
-            { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements. Make sure to write fully detailed content to reach the target word count." },
+            { role: "system", content: "你是一位資深內容行銷策略師與數位專欄作家。請用純文字撰寫文章，絕對禁止使用任何 Markdown 格式（# * - ** ` [] 等符號）。直接輸出乾淨的純文字內容，用段落和換行來組織結構。" },
             { role: "user", content: prompt },
           ],
-          max_completion_tokens: Math.min(Math.ceil(wordCount * 5), 16000),
+          max_tokens: Math.min(Math.ceil(wordCount * 5), 16000),
+          temperature: 0.7,
         }),
       });
 
@@ -268,6 +287,7 @@ ${outline}
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
           max_tokens: Math.ceil(wordCount * 4),
+          system: "你是一位資深內容行銷策略師與數位專欄作家。請用純文字撰寫文章，絕對禁止使用任何 Markdown 格式（# * - ** ` [] 等符號）。直接輸出乾淨的純文字內容。",
           messages: [{ role: "user", content: prompt }],
         }),
       });
@@ -304,7 +324,7 @@ ${outline}
         body: JSON.stringify({
           model: "grok-beta",
           messages: [
-            { role: "system", content: "You are a professional SEO content writer. Always write complete articles that meet the exact word count requirements." },
+            { role: "system", content: "你是一位資深內容行銷策略師與數位專欄作家。請用純文字撰寫文章，絕對禁止使用任何 Markdown 格式（# * - ** ` [] 等符號）。直接輸出乾淨的純文字內容。" },
             { role: "user", content: prompt },
           ],
           max_tokens: Math.ceil(wordCount * 4),
