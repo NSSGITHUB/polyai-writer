@@ -827,7 +827,10 @@ const Generator = () => {
                     />
                   </div>
                 )}
-                <Textarea readOnly value={article.content} className="min-h-[300px]" />
+                <div 
+                  className="prose prose-sm max-w-none dark:prose-invert bg-background/50 p-4 rounded-lg border min-h-[300px] overflow-auto"
+                  dangerouslySetInnerHTML={{ __html: article.content }}
+                />
               </Card>
             ))}
           </div>
