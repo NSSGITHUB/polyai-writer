@@ -235,11 +235,20 @@ ${outline}
       );
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error("Google error:", error);
+        const errorText = await response.text();
+        console.error("Google error:", errorText);
+
+        let message = "Google API error";
+        try {
+          const parsed = JSON.parse(errorText);
+          message = parsed?.error?.message || message;
+        } catch {
+          // ignore JSON parse errors
+        }
+
         return new Response(
-          JSON.stringify({ error: "Google API error" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: message, provider: "google", status: response.status }),
+          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
