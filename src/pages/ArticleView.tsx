@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 import { SendToWordPressDialog } from "@/components/SendToWordPressDialog";
+import { HtmlContent } from "@/components/HtmlContent";
 
 interface Article {
   id: number;
@@ -365,11 +366,10 @@ export default function ArticleView() {
               );
             })()}
 
-            <div className="prose prose-slate dark:prose-invert max-w-none">
-              <div className="whitespace-pre-wrap leading-relaxed">
-                {article.content}
-              </div>
-            </div>
+            <HtmlContent
+              html={article.content}
+              className="prose prose-slate dark:prose-invert max-w-none"
+            />
           </CardContent>
         </Card>
 

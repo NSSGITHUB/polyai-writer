@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
+import { HtmlContent } from "@/components/HtmlContent";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -827,9 +828,9 @@ const Generator = () => {
                     />
                   </div>
                 )}
-                <div 
+                <HtmlContent
+                  html={article.content}
                   className="prose prose-sm max-w-none dark:prose-invert bg-background/50 p-4 rounded-lg border min-h-[300px] overflow-auto"
-                  dangerouslySetInnerHTML={{ __html: article.content }}
                 />
               </Card>
             ))}
