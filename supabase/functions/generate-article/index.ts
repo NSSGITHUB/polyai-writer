@@ -75,7 +75,10 @@ async function scrapeImagesFromUrl(url: string): Promise<string[]> {
   }
 }
 
+type SourcePlan = { name: string; priceText: string; source: "jsonld" | "text" };
+
 type YoutubeVideo = { title: string; videoId: string; url: string };
+type YoutubeSearchResult = { videos: YoutubeVideo[]; error?: string; status?: number };
 
 const escapeHtmlAttr = (s: string) =>
   (s ?? "")
@@ -83,6 +86,142 @@ const escapeHtmlAttr = (s: string) =>
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+
+function formatPriceText(price: unknown, currency: unknown): string | null {
+  const p = typeof price === "number" ? String(price) : typeof price === "string" ? price.trim() : "";
+  if (!p) return null;
+
+  const c = typeof currency === "string" ? currency.trim().toUpperCase() : "";
+  const prefix =
+    c === "TWD" || c === "NTD" ? "NT$" :
+    c === "USD" ? "$" :
+    c === "HKD" ? "HK$" :
+    c === "JPY" ? "¥" :
+    c ? `${c} ` : "";
+
+  // Preserve existing prefix if the price string already has it
+  if (/^(NT\$|HK\$|\$|¥)/.test(p)) return p;
+  return `${prefix}${p}`.trim();
+}
+
+function flattenJsonLd(value: any): any[] {
+  const out: any[] = [];
+  const visit = (v: any) => {
+    if (!v) return;
+    if (Array.isArray(v)) return v.forEach(visit);
+    if (typeof v !== "object") return;
+    out.push(v);
+    if (v["@graph"]) visit(v["@graph"]);
+  };
+  visit(value);
+  return out;
+}
+
+async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    });
+
+    if (!resp.ok) {
+      console.error(`Failed to fetch URL for plans: ${resp.status}`);
+      return [];
+    }
+
+    const html = await resp.text();
+    const plans: SourcePlan[] = [];
+
+    // 1) JSON-LD (schema.org) products/offers
+    const jsonLdRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = jsonLdRegex.exec(html)) !== null) {
+      const raw = (m[1] || "").trim();
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        const nodes = flattenJsonLd(parsed);
+
+        for (const node of nodes) {
+          const t = node?.["@type"];
+          const types = Array.isArray(t) ? t : typeof t === "string" ? [t] : [];
+          const isProduct = types.some((x) => String(x).toLowerCase().includes("product"));
+          if (!isProduct) continue;
+
+          const name = typeof node?.name === "string" ? node.name.trim() : "";
+          const offers = node?.offers;
+          const offerList = Array.isArray(offers) ? offers : offers ? [offers] : [];
+
+          if (name) {
+            if (!offerList.length) {
+              plans.push({ name, priceText: "請見官網", source: "jsonld" });
+              continue;
+            }
+
+            for (const off of offerList) {
+              const price = off?.price ?? off?.lowPrice ?? off?.highPrice;
+              const currency = off?.priceCurrency;
+              const priceText = formatPriceText(price, currency) ?? "請見官網";
+              plans.push({ name, priceText, source: "jsonld" });
+            }
+          }
+        }
+      } catch {
+        // ignore invalid JSON
+      }
+    }
+
+    // 2) Fallback: simple text-based price hints
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const priceRegex = /(.{0,40}?)(NT\$|NTD|HK\$|\$|¥)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
+    let pMatch: RegExpExecArray | null;
+    while ((pMatch = priceRegex.exec(text)) !== null) {
+      const before = (pMatch[1] || "").trim();
+      const symbol = pMatch[2] || "";
+      const num = pMatch[3] || "";
+
+      // Heuristic: pick a short-ish name near the price
+      let name = before
+        .replace(/[|｜:：•·]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (name.length > 30) name = name.slice(-30).trim();
+
+      const priceText = `${symbol}${num}`.trim();
+      if (!name) continue;
+      if (!/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+
+      plans.push({ name, priceText, source: "text" });
+
+      if (plans.length >= 12) break;
+    }
+
+    // Deduplicate + keep top few
+    const uniq: SourcePlan[] = [];
+    const seen = new Set<string>();
+    for (const p of plans) {
+      const key = `${p.name}@@${p.priceText}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(p);
+      if (uniq.length >= 6) break;
+    }
+
+    return uniq;
+  } catch (e) {
+    console.error("Error scraping plans:", e);
+    return [];
+  }
+}
 
 async function searchYoutubeVideos({
   apiKey,
@@ -96,7 +235,7 @@ async function searchYoutubeVideos({
   maxResults: number;
   regionCode?: string;
   relevanceLanguage?: string;
-}): Promise<YoutubeVideo[]> {
+}): Promise<YoutubeSearchResult> {
   try {
     const u = new URL("https://www.googleapis.com/youtube/v3/search");
     u.searchParams.set("part", "snippet");
@@ -111,14 +250,22 @@ async function searchYoutubeVideos({
 
     const resp = await fetch(u.toString());
     if (!resp.ok) {
-      console.error("YouTube search error:", resp.status, await resp.text());
-      return [];
+      const text = await resp.text().catch(() => "");
+      console.error("YouTube search error:", resp.status, text);
+      let msg = "YouTube 搜尋失敗";
+      try {
+        const parsed = JSON.parse(text);
+        msg = parsed?.error?.message || msg;
+      } catch {
+        if (text) msg = text.slice(0, 300);
+      }
+      return { videos: [], error: msg, status: resp.status };
     }
 
     const data = await resp.json();
     const items = Array.isArray(data?.items) ? data.items : [];
 
-    return items
+    const videos = items
       .map((it: any) => {
         const videoId = it?.id?.videoId as string | undefined;
         const title = it?.snippet?.title as string | undefined;
@@ -131,9 +278,11 @@ async function searchYoutubeVideos({
       })
       .filter(Boolean)
       .slice(0, maxResults) as YoutubeVideo[];
+
+    return { videos };
   } catch (e) {
     console.error("YouTube search exception:", e);
-    return [];
+    return { videos: [], error: e instanceof Error ? e.message : "YouTube 搜尋例外" };
   }
 }
 
@@ -202,29 +351,42 @@ serve(async (req) => {
       sourceUrl = "",
     } = body;
 
-    // 抓取來源網站圖片
+    // 抓取來源網站圖片（表格用）
     let scrapedImages: string[] = [];
     if (includeSourceImages && sourceUrl) {
-      console.log('Scraping images from:', sourceUrl);
+      console.log("Scraping images from:", sourceUrl);
       scrapedImages = await scrapeImagesFromUrl(sourceUrl);
-      console.log('Scraped images:', scrapedImages.length);
+      console.log("Scraped images:", scrapedImages.length);
+    }
+
+    // 從來源頁面嘗試擷取「方案/商品」與「價格」（比較表格用）
+    // 注意：若使用者輸入的是首頁/分類頁，可能抓不到明確的方案價格
+    let sourcePlans: SourcePlan[] = [];
+    if (sourceUrl) {
+      console.log("Scraping plans from:", sourceUrl);
+      sourcePlans = await scrapePlansFromUrl(sourceUrl);
+      console.log("Scraped plans:", sourcePlans.length);
     }
 
     // 搜尋 YouTube 影片（若啟用）
     let youtubeVideos: YoutubeVideo[] = [];
+    let youtubeError: string | undefined;
     if (includeYoutube) {
       const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || "";
       if (!YOUTUBE_API_KEY) {
+        youtubeError = "YouTube API key 尚未設定（YOUTUBE_API_KEY / GOOGLE_API_KEY）";
         console.warn("YouTube API key not configured (YOUTUBE_API_KEY / GOOGLE_API_KEY). Skipping YouTube embeds.");
       } else {
         const query = `${topic} ${keywords}`.trim();
-        youtubeVideos = await searchYoutubeVideos({
+        const yt = await searchYoutubeVideos({
           apiKey: YOUTUBE_API_KEY,
           query,
           maxResults: 2,
           regionCode: language === "zh-TW" ? "TW" : undefined,
           relevanceLanguage: language === "zh-TW" ? "zh-Hant" : undefined,
         });
+        youtubeVideos = yt.videos;
+        youtubeError = yt.error;
         console.log("YouTube videos found:", youtubeVideos.length);
       }
     }
@@ -300,32 +462,33 @@ serve(async (req) => {
    <h3>子標題 2</h3>
    <p>進一步分析...</p>
 
- 3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}
-    <h2>主要方案/產品比較分析</h2>
-    <p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
-    
-    <table class="table table-bordered table-striped">
-      <thead class="table-dark">
-        <tr>
-          ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
-          <th>方案/產品</th>
-          <th>核心特色</th>
-          <th>優點</th>
-          <th>缺點</th>
-          <th>適合對象</th>
-          <th>參考價格</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
-        ${scrapedImages.length > 0 ? `<!-- 第一欄請用 <img>，圖片 URL 依序使用：${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('、')} -->` : ''}
-      </tbody>
-    </table>
-    <p>最後用一段話總結差異與建議選擇方向。</p>
-    ${scrapedImages.length > 0 ? `
-    【重要】若要插入圖片，以下是可用的圖片 URL：
-    ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
-    ` : ''}
+  3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}${sourcePlans.length > 0 ? '（方案/價格以來源網址為準）' : ''}
+     <h2>主要方案/產品比較分析</h2>
+     <p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
+     
+     <table class="table table-bordered table-striped">
+       <thead class="table-dark">
+         <tr>
+           ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
+           <th>方案/產品</th>
+           <th>核心特色</th>
+           <th>優點</th>
+           <th>缺點</th>
+           <th>適合對象</th>
+           <th>參考價格</th>
+         </tr>
+       </thead>
+       <tbody>
+         <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
+         ${sourcePlans.length > 0 ? `<!-- 【來源網址擷取到的方案/價格】請「優先」使用下列資料，並確保表格中的「方案/產品」與「參考價格」對應一致（不可憑空捏造）：\n${sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\\n')}\n若不足 4 列，剩餘列可以列出同品牌的其他方案/分類，但「參考價格」請填「請見官網」。 -->` : ''}
+         ${scrapedImages.length > 0 ? `<!-- 第一欄請用 <img>，圖片 URL 依序使用：${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('、')} -->` : ''}
+       </tbody>
+     </table>
+     <p>最後用一段話總結差異與建議選擇方向。</p>
+     ${scrapedImages.length > 0 ? `
+     【重要】若要插入圖片，以下是可用的圖片 URL：
+     ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
+     ` : ''}
 
 4. 【專家建議區塊】
    <h3>💡 專家建議</h3>
@@ -673,6 +836,8 @@ ${outline}
         cjkCount,
         targetWordCount: wordCount,
         youtubeCount: youtubeVideos.length,
+        youtubeError: youtubeError ?? null,
+        sourcePlansCount: sourcePlans.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

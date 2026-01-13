@@ -154,6 +154,8 @@ const Generator = () => {
       }
 
       let articleIndex = 0;
+      let youtubeWarned = false;
+      let sourcePlansWarned = false;
       for (let i = 0; i < articlesToGenerate; i++) {
         for (const provider of selectedProviders) {
           try {
@@ -189,6 +191,33 @@ const Generator = () => {
             }
 
             const generatedText = (data?.generatedText as string) || '';
+
+            const youtubeCount = Number((data as any)?.youtubeCount ?? 0);
+            const youtubeError = ((data as any)?.youtubeError as string | null | undefined) ?? undefined;
+            if (formData.includeYoutube && !youtubeWarned && youtubeCount === 0) {
+              youtubeWarned = true;
+              toast({
+                title: "YouTube 影片未插入",
+                description:
+                  youtubeError ||
+                  "目前沒有找到可嵌入的 YouTube 影片（或 API 限制/未啟用 YouTube Data API）。可嘗試調整關鍵字或更換主題再試。",
+                variant: "destructive",
+                duration: 9000,
+              });
+            }
+
+            const sourcePlansCount = Number((data as any)?.sourcePlansCount ?? 0);
+            if (formData.sourceUrl && !sourcePlansWarned && sourcePlansCount === 0) {
+              sourcePlansWarned = true;
+              toast({
+                title: "來源網址未抓到商品/價格",
+                description:
+                  "目前從該網址解析不到明確的方案/價格（若填的是首頁很常發生）。建議改填『方案/價格頁』或『單一商品頁』網址。",
+                variant: "destructive",
+                duration: 9000,
+              });
+            }
+
             const sanitize = (text: string) =>
               text
                 .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
