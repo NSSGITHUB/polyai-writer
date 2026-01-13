@@ -200,6 +200,9 @@ const Generator = () => {
             if (!cleanedText) continue;
 
             // 儲存每篇文章
+            const actualWordCount =
+              typeof (data as any)?.wordCount === "number" ? ((data as any).wordCount as number) : undefined;
+
             const savePayload = {
               userId: userId,
               user_id: userId,
@@ -210,7 +213,8 @@ const Generator = () => {
               outline: formData.outline,
               language: formData.language,
               style: formData.style,
-              wordCount: Number(formData.wordCount),
+              // 優先使用後端回傳的實際字數（可見文字），避免「設定字數」與「實際字數」不一致
+              wordCount: actualWordCount ?? Number(formData.wordCount),
               aiProvider: provider,
               status: "published",
             };

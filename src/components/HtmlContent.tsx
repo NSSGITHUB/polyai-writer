@@ -82,10 +82,51 @@ export function HtmlContent({
     // Minimal sanitization: remove active content + inline event handlers.
     try {
       const doc = new DOMParser().parseFromString(normalized, "text/html");
-      const blockedTags = ["script", "iframe", "object", "embed", "link", "meta", "style"];
+      const blockedTags = ["script", "object", "embed", "link", "meta", "style"];
       for (const tag of blockedTags) {
         doc.querySelectorAll(tag).forEach((el) => el.remove());
       }
+
+      // Allow only safe YouTube embeds; remove all other iframes.
+      const isAllowedYoutubeEmbed = (src: string) => {
+        try {
+          const u = new URL(src, window.location.href);
+          const host = u.hostname.replace(/^www\./, "");
+          const isYoutube = host === "youtube.com" || host === "youtube-nocookie.com";
+          return isYoutube && u.pathname.startsWith("/embed/");
+        } catch {
+          return false;
+        }
+      };
+
+      doc.querySelectorAll("iframe").forEach((el) => {
+        const src = (el.getAttribute("src") || "").trim();
+        if (!src || !isAllowedYoutubeEmbed(src)) {
+          el.remove();
+          return;
+        }
+
+        const allowed = new Set([
+          "src",
+          "width",
+          "height",
+          "title",
+          "loading",
+          "allow",
+          "allowfullscreen",
+          "referrerpolicy",
+          "frameborder",
+        ]);
+
+        Array.from(el.attributes).forEach((attr) => {
+          if (!allowed.has(attr.name.toLowerCase())) el.removeAttribute(attr.name);
+        });
+
+        if (!el.getAttribute("loading")) el.setAttribute("loading", "lazy");
+        if (!el.getAttribute("referrerpolicy")) {
+          el.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+        }
+      });
 
       doc.querySelectorAll("*").forEach((el) => {
         Array.from(el.attributes).forEach((attr) => {

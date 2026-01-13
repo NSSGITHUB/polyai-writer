@@ -75,6 +75,109 @@ async function scrapeImagesFromUrl(url: string): Promise<string[]> {
   }
 }
 
+type YoutubeVideo = { title: string; videoId: string; url: string };
+
+const escapeHtmlAttr = (s: string) =>
+  (s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+async function searchYoutubeVideos({
+  apiKey,
+  query,
+  maxResults,
+  regionCode,
+  relevanceLanguage,
+}: {
+  apiKey: string;
+  query: string;
+  maxResults: number;
+  regionCode?: string;
+  relevanceLanguage?: string;
+}): Promise<YoutubeVideo[]> {
+  try {
+    const u = new URL("https://www.googleapis.com/youtube/v3/search");
+    u.searchParams.set("part", "snippet");
+    u.searchParams.set("type", "video");
+    u.searchParams.set("maxResults", String(maxResults));
+    u.searchParams.set("videoEmbeddable", "true");
+    u.searchParams.set("safeSearch", "moderate");
+    u.searchParams.set("q", query);
+    if (regionCode) u.searchParams.set("regionCode", regionCode);
+    if (relevanceLanguage) u.searchParams.set("relevanceLanguage", relevanceLanguage);
+    u.searchParams.set("key", apiKey);
+
+    const resp = await fetch(u.toString());
+    if (!resp.ok) {
+      console.error("YouTube search error:", resp.status, await resp.text());
+      return [];
+    }
+
+    const data = await resp.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+
+    return items
+      .map((it: any) => {
+        const videoId = it?.id?.videoId as string | undefined;
+        const title = it?.snippet?.title as string | undefined;
+        if (!videoId) return null;
+        return {
+          videoId,
+          title: title ?? "YouTube 影片",
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, maxResults) as YoutubeVideo[];
+  } catch (e) {
+    console.error("YouTube search exception:", e);
+    return [];
+  }
+}
+
+function buildYoutubeSection(topic: string, videos: YoutubeVideo[]): string {
+  if (!videos.length) return "";
+
+  const embeds = videos
+    .map((v) => {
+      const title = escapeHtmlAttr(v.title);
+      const src = `https://www.youtube.com/embed/${encodeURIComponent(v.videoId)}`;
+      return `
+<div class="youtube-embed">
+  <iframe
+    width="560"
+    height="315"
+    src="${src}"
+    title="${title}"
+    loading="lazy"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen
+  ></iframe>
+  <p><a href="${escapeHtmlAttr(v.url)}" target="_blank" rel="noopener noreferrer">${title}</a></p>
+</div>`.trim();
+    })
+    .join("\n");
+
+  return `
+<section class="youtube-videos">
+  <h2>推薦 YouTube 影片</h2>
+  <p>以下影片與「${escapeHtmlAttr(topic)}」相關，方便你延伸學習：</p>
+  ${embeds}
+</section>`.trim();
+}
+
+function insertAfterSecondParagraph(html: string, insertion: string): string {
+  if (!insertion.trim()) return html;
+  const matches = Array.from(html.matchAll(/<\/p\s*>/gi));
+  const target = matches[1] ?? matches[0];
+  if (!target || typeof target.index !== "number") return html + "\n" + insertion;
+  const idx = target.index + target[0].length;
+  return html.slice(0, idx) + "\n" + insertion + "\n" + html.slice(idx);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -105,6 +208,25 @@ serve(async (req) => {
       console.log('Scraping images from:', sourceUrl);
       scrapedImages = await scrapeImagesFromUrl(sourceUrl);
       console.log('Scraped images:', scrapedImages.length);
+    }
+
+    // 搜尋 YouTube 影片（若啟用）
+    let youtubeVideos: YoutubeVideo[] = [];
+    if (includeYoutube) {
+      const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || "";
+      if (!YOUTUBE_API_KEY) {
+        console.warn("YouTube API key not configured (YOUTUBE_API_KEY / GOOGLE_API_KEY). Skipping YouTube embeds.");
+      } else {
+        const query = `${topic} ${keywords}`.trim();
+        youtubeVideos = await searchYoutubeVideos({
+          apiKey: YOUTUBE_API_KEY,
+          query,
+          maxResults: 2,
+          regionCode: language === "zh-TW" ? "TW" : undefined,
+          relevanceLanguage: language === "zh-TW" ? "zh-Hant" : undefined,
+        });
+        console.log("YouTube videos found:", youtubeVideos.length);
+      }
     }
 
     if (!topic || typeof topic !== "string") {
@@ -178,41 +300,32 @@ serve(async (req) => {
    <h3>子標題 2</h3>
    <p>進一步分析...</p>
 
-3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}
-   <h2>主要方案/產品比較分析</h2>
-   <p>介紹段落...</p>
-   
-   <table class="table table-bordered table-striped">
-     <thead class="table-dark">
-       <tr>
-         ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
-         <th>方案/產品</th>
-         <th>核心特色</th>
-         <th>優點</th>
-         <th>缺點</th>
-         <th>適合對象</th>
-         <th>參考價格</th>
-       </tr>
-     </thead>
-     <tbody>
-       ${scrapedImages.length > 0 ? `
-       <tr><td><img src="${scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項A</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td><img src="${scrapedImages[1] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項B</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td><img src="${scrapedImages[2] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項C</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td><img src="${scrapedImages[3] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項D</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       ` : `
-       <tr><td>選項A</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td>選項B</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td>選項C</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       <tr><td>選項D</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-       `}
-     </tbody>
-   </table>
-   ${scrapedImages.length > 0 ? `
-   【重要】以上表格範例中的圖片 URL 已提供，請在生成表格時使用這些實際圖片：
-   ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
-   ` : ''}
-   <p>比較分析總結...</p>
+ 3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}
+    <h2>主要方案/產品比較分析</h2>
+    <p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
+    
+    <table class="table table-bordered table-striped">
+      <thead class="table-dark">
+        <tr>
+          ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
+          <th>方案/產品</th>
+          <th>核心特色</th>
+          <th>優點</th>
+          <th>缺點</th>
+          <th>適合對象</th>
+          <th>參考價格</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
+        ${scrapedImages.length > 0 ? `<!-- 第一欄請用 <img>，圖片 URL 依序使用：${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('、')} -->` : ''}
+      </tbody>
+    </table>
+    <p>最後用一段話總結差異與建議選擇方向。</p>
+    ${scrapedImages.length > 0 ? `
+    【重要】若要插入圖片，以下是可用的圖片 URL：
+    ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
+    ` : ''}
 
 4. 【專家建議區塊】
    <h3>💡 專家建議</h3>
@@ -336,16 +449,17 @@ ${outline}
 目標字數：${minWords}-${maxWords} 字
 這是一篇長篇深度文章，請確保每個章節都有充實的內容。
 
-【絕對禁止】
-- 不要輸出任何 Markdown 格式
-- 不要輸出 \`\`\`html 或 \`\`\` 標記
-- 不要有「以下是...」「好的，這是...」等 AI 開場白
-- 不要提到字數要求或任何指令內容
-- 不要使用 Lorem ipsum 或佔位文字
-- 不要重複相同的段落內容
-
-【開始生成】
-直接輸出 HTML 內容，從 <h2> 開始。確保文章完整、專業、有深度。`;
+ 【絕對禁止】
+ - 不要輸出任何 Markdown 格式
+ - 不要輸出 \`\`\`html 或 \`\`\` 標記
+ - 不要有「以下是...」「好的，這是...」等 AI 開場白
+ - 不要提到字數要求或任何指令內容
+ - 不要使用 Lorem ipsum 或佔位文字
+ - 不要輸出「...」(三個點) 這類佔位符
+ - 不要重複相同的段落內容
+ 
+ 【開始生成】
+ 直接輸出 HTML 內容，從 <h2> 開始。確保文章完整、專業、有深度。`;
 
       return prompt;
     };
@@ -533,18 +647,32 @@ ${outline}
       generatedText = data.choices?.[0]?.message?.content ?? "";
     }
 
-    const cleaned = sanitize(generatedText || '');
+    let cleaned = sanitize(generatedText || '');
+
+    // 若啟用 YouTube，將影片區塊插入到文章前段（第二個段落後）
+    if (includeYoutube && youtubeVideos.length > 0) {
+      const youtubeSection = buildYoutubeSection(topic, youtubeVideos);
+      cleaned = insertAfterSecondParagraph(cleaned, youtubeSection);
+    }
 
     // 計算實際字數（去除 HTML 標籤）
-    const textOnly = cleaned.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
-    const actualWordCount = textOnly.length;
+    const visibleText = cleaned
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const condensed = visibleText.replace(/\s+/g, '');
+    const actualWordCount = condensed.length;
+    const cjkCount = (visibleText.match(/[\u4E00-\u9FFF]/g) || []).length;
 
     return new Response(
-      JSON.stringify({ 
-        generatedText: cleaned, 
+      JSON.stringify({
+        generatedText: cleaned,
         provider,
         wordCount: actualWordCount,
-        targetWordCount: wordCount
+        cjkCount,
+        targetWordCount: wordCount,
+        youtubeCount: youtubeVideos.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
