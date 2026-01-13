@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,17 @@ const setMeta = (title: string, description: string) => {
   }
 };
 
+const getVisibleText = (html: string) => {
+  const raw = (html ?? "").toString();
+  if (!raw.trim()) return "";
+  try {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  } catch {
+    return raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+};
+
 export default function ArticleView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -65,6 +76,13 @@ export default function ArticleView() {
     if (abs.startsWith('http')) return `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(abs)}`;
     return abs;
   };
+
+  const actualCounts = useMemo(() => {
+    const text = getVisibleText(article?.content || "");
+    const visibleChars = text.replace(/\s+/g, "").length;
+    const cjk = (text.match(/[\u4E00-\u9FFF]/g) || []).length;
+    return { visibleChars, cjk };
+  }, [article?.content]);
 
   const downloadAsWord = async () => {
     if (!article) return;
@@ -287,10 +305,14 @@ export default function ArticleView() {
                   {article.language}
                 </Badge>
               )}
-              {article.word_count && (
-                <Badge variant="outline">
-                  {article.word_count} 字
-                </Badge>
+              {(article.word_count || actualCounts.visibleChars) && (
+                <>
+                  {article.word_count && (
+                    <Badge variant="outline">設定 {article.word_count} 字</Badge>
+                  )}
+                  <Badge variant="outline">實際 {actualCounts.visibleChars} 字</Badge>
+                  <Badge variant="outline">中文字 {actualCounts.cjk}</Badge>
+                </>
               )}
             </div>
             <CardTitle className="text-3xl">{article.title}</CardTitle>

@@ -18,11 +18,38 @@ export interface SeoScore {
   };
 }
 
-export function analyzeSeo(
-  title: string,
-  content: string,
-  keywords?: string
-): SeoScore {
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const extractTextFromHtml = (html: string) => {
+  const raw = (html ?? "").toString();
+  if (!raw.trim()) return "";
+
+  try {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  } catch {
+    return raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+};
+
+const countParagraphsFromHtml = (html: string) => {
+  const raw = (html ?? "").toString();
+  if (!raw.trim()) return 0;
+
+  try {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    const pCount = doc.body.querySelectorAll("p").length;
+    const liCount = doc.body.querySelectorAll("li").length;
+    const hCount = doc.body.querySelectorAll("h2,h3").length;
+    // Rough structure heuristic: paragraphs dominate, but lists/headings also indicate structure.
+    return Math.max(pCount, Math.ceil(liCount / 3) + hCount);
+  } catch {
+    // Fallback: split on blank lines.
+    return raw.split(/\n\n+/).filter((p) => p.trim()).length;
+  }
+};
+
+export function analyzeSeo(title: string, content: string, keywords?: string): SeoScore {
   const suggestions: string[] = [];
   const scores = {
     titleLength: 0,
@@ -49,8 +76,12 @@ export function analyzeSeo(
     }
   }
 
+  // Extract visible text for all further calculations (avoid counting HTML tags).
+  const visibleText = extractTextFromHtml(content);
+  const condensedText = visibleText.replace(/\s+/g, "");
+  const wordCount = condensedText.length;
+
   // 2. 內容長度分析
-  const wordCount = content.length;
   if (wordCount >= 1500) {
     scores.contentLength = 100;
   } else if (wordCount >= 800) {
@@ -66,19 +97,19 @@ export function analyzeSeo(
   let keywordCount = 0;
   let keywordDensity = 0;
   if (keywords) {
-    const keywordList = keywords.split(/[,，、\s]+/).filter(k => k.trim());
-    const contentLower = content.toLowerCase();
-    
-    keywordList.forEach(keyword => {
-      const regex = new RegExp(keyword.toLowerCase(), "gi");
-      const matches = contentLower.match(regex);
-      if (matches) {
-        keywordCount += matches.length;
-      }
+    const keywordList = keywords.split(/[,，、\s]+/).filter((k) => k.trim());
+    const textLower = visibleText.toLowerCase();
+
+    keywordList.forEach((keyword) => {
+      const kw = keyword.trim();
+      if (!kw) return;
+      const regex = new RegExp(escapeRegExp(kw.toLowerCase()), "g");
+      const matches = textLower.match(regex);
+      if (matches) keywordCount += matches.length;
     });
 
-    keywordDensity = (keywordCount / wordCount) * 100;
-    
+    keywordDensity = wordCount > 0 ? (keywordCount / wordCount) * 100 : 0;
+
     if (keywordDensity >= 1 && keywordDensity <= 3) {
       scores.keywordDensity = 100;
     } else if (keywordDensity >= 0.5 && keywordDensity <= 5) {
@@ -96,10 +127,10 @@ export function analyzeSeo(
     suggestions.push("未設定關鍵字，建議添加目標關鍵字以優化 SEO");
   }
 
-  // 4. 可讀性分析
-  const sentences = content.split(/[。！？.!?]+/).filter(s => s.trim());
+  // 4. 可讀性分析（以可見文字計算）
+  const sentences = visibleText.split(/[。！？.!?]+/).filter((s) => s.trim());
   const averageSentenceLength = wordCount / (sentences.length || 1);
-  
+
   if (averageSentenceLength <= 20) {
     scores.readability = 100;
   } else if (averageSentenceLength <= 30) {
@@ -111,10 +142,9 @@ export function analyzeSeo(
     suggestions.push("平均句子長度較長，建議使用更短的句子以提升可讀性");
   }
 
-  // 5. 段落結構分析
-  const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
-  const paragraphCount = paragraphs.length;
-  
+  // 5. 段落結構分析（以 HTML 結構估算）
+  const paragraphCount = countParagraphsFromHtml(content);
+
   if (paragraphCount >= 5) {
     scores.structure = 100;
   } else if (paragraphCount >= 3) {
@@ -127,9 +157,9 @@ export function analyzeSeo(
   // 檢查是否包含標題關鍵字
   if (keywords) {
     const titleLower = title.toLowerCase();
-    const keywordList = keywords.split(/[,，、\s]+/).filter(k => k.trim());
-    const hasKeywordInTitle = keywordList.some(k => titleLower.includes(k.toLowerCase()));
-    
+    const keywordList = keywords.split(/[,，、\s]+/).filter((k) => k.trim());
+    const hasKeywordInTitle = keywordList.some((k) => titleLower.includes(k.toLowerCase()));
+
     if (!hasKeywordInTitle) {
       suggestions.push("建議在標題中包含主要關鍵字");
     }
@@ -141,7 +171,8 @@ export function analyzeSeo(
       scores.keywordDensity +
       scores.contentLength +
       scores.readability +
-      scores.structure) / 5
+      scores.structure) /
+      5,
   );
 
   return {
