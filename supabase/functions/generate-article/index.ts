@@ -19,7 +19,60 @@ interface GenerateRequest {
   provider: "openai" | "google" | "anthropic" | "xai";
   includeYoutube?: boolean;
   includeImages?: boolean;
+  includeSourceImages?: boolean;
   sourceUrl?: string;
+}
+
+// 從網頁抓取圖片 URL
+async function scrapeImagesFromUrl(url: string): Promise<string[]> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch URL: ${response.status}`);
+      return [];
+    }
+    
+    const html = await response.text();
+    
+    // 提取圖片 URL
+    const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    const images: string[] = [];
+    let match;
+    
+    while ((match = imgRegex.exec(html)) !== null) {
+      let imgUrl = match[1];
+      
+      // 處理相對路徑
+      if (imgUrl.startsWith('//')) {
+        imgUrl = 'https:' + imgUrl;
+      } else if (imgUrl.startsWith('/')) {
+        const urlObj = new URL(url);
+        imgUrl = urlObj.origin + imgUrl;
+      } else if (!imgUrl.startsWith('http')) {
+        const urlObj = new URL(url);
+        imgUrl = urlObj.origin + '/' + imgUrl;
+      }
+      
+      // 過濾掉小圖標、logo 等
+      if (!/(icon|logo|pixel|clear|svg|favicon|sprite|blank|spacer|button|arrow|loading)/i.test(imgUrl)) {
+        // 確保圖片 URL 有效
+        if (imgUrl.match(/\.(jpg|jpeg|png|gif|webp)/i) || imgUrl.includes('image')) {
+          images.push(imgUrl);
+        }
+      }
+    }
+    
+    // 去重並限制數量
+    return [...new Set(images)].slice(0, 8);
+  } catch (error) {
+    console.error('Error scraping images:', error);
+    return [];
+  }
 }
 
 serve(async (req) => {
@@ -42,8 +95,17 @@ serve(async (req) => {
       provider,
       includeYoutube = false,
       includeImages = false,
+      includeSourceImages = false,
       sourceUrl = "",
     } = body;
+
+    // 抓取來源網站圖片
+    let scrapedImages: string[] = [];
+    if (includeSourceImages && sourceUrl) {
+      console.log('Scraping images from:', sourceUrl);
+      scrapedImages = await scrapeImagesFromUrl(sourceUrl);
+      console.log('Scraped images:', scrapedImages.length);
+    }
 
     if (!topic || typeof topic !== "string") {
       return new Response(
@@ -116,13 +178,14 @@ serve(async (req) => {
    <h3>子標題 2</h3>
    <p>進一步分析...</p>
 
-3. 【比較分析章節】- 必須包含表格
+3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}
    <h2>主要方案/產品比較分析</h2>
    <p>介紹段落...</p>
    
    <table class="table table-bordered table-striped">
      <thead class="table-dark">
        <tr>
+         ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
          <th>方案/產品</th>
          <th>核心特色</th>
          <th>優點</th>
@@ -132,13 +195,23 @@ serve(async (req) => {
        </tr>
      </thead>
      <tbody>
+       ${scrapedImages.length > 0 ? `
+       <tr><td><img src="${scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項A</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td><img src="${scrapedImages[1] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項B</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td><img src="${scrapedImages[2] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項C</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td><img src="${scrapedImages[3] || scrapedImages[0] || ''}" alt="產品圖片" style="max-width:100px;max-height:100px;object-fit:contain;"></td><td>選項D</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       ` : `
        <tr><td>選項A</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
        <tr><td>選項B</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
        <tr><td>選項C</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
        <tr><td>選項D</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       `}
      </tbody>
    </table>
-   
+   ${scrapedImages.length > 0 ? `
+   【重要】以上表格範例中的圖片 URL 已提供，請在生成表格時使用這些實際圖片：
+   ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
+   ` : ''}
    <p>比較分析總結...</p>
 
 4. 【專家建議區塊】

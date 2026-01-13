@@ -48,6 +48,7 @@ const Generator = () => {
     contentRequirements: "",
     sourceUrl: "",
     includeYoutube: false,
+    includeSourceImages: false,
     language: "zh-TW",
     style: "professional",
     wordCount: "3000",
@@ -168,6 +169,7 @@ const Generator = () => {
                 contentRequirements: formData.contentRequirements,
                 sourceUrl: formData.sourceUrl,
                 includeYoutube: formData.includeYoutube,
+                includeSourceImages: formData.includeSourceImages,
                 language: formData.language,
                 style: formData.style,
                 wordCount: Number(formData.wordCount),
@@ -543,6 +545,20 @@ const Generator = () => {
                     在文章中插入相關 YouTube 影片（若可用）
                   </Label>
                 </div>
+
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="includeSourceImages"
+                    checked={formData.includeSourceImages}
+                    onCheckedChange={(checked) => setFormData({ ...formData, includeSourceImages: !!checked })}
+                  />
+                  <Label htmlFor="includeSourceImages" className="cursor-pointer">
+                    抓取來源網站的圖片並加入表格中
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground pl-6">
+                  啟用後，系統會從參考網址抓取商品圖片並加入比較表格
+                </p>
               </div>
 
               {/* Settings Row */}
