@@ -18,6 +18,7 @@ interface GenerateRequest {
   wordCount?: number;
   provider: "openai" | "google" | "anthropic" | "xai";
   includeYoutube?: boolean;
+  youtubeChannelId?: string;
   includeImages?: boolean;
   includeSourceImages?: boolean;
   sourceUrl?: string;
@@ -223,18 +224,44 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
   }
 }
 
+// 從頻道 URL 或 ID 提取頻道 ID
+function extractChannelId(input: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  
+  // 直接是頻道 ID（UC 開頭）
+  if (/^UC[\w-]{22}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // YouTube 頻道 URL 格式
+  // https://www.youtube.com/channel/UCxxxxxx
+  const channelMatch = trimmed.match(/youtube\.com\/channel\/(UC[\w-]{22})/i);
+  if (channelMatch) return channelMatch[1];
+  
+  // https://www.youtube.com/@username - 需要額外 API 呼叫，暫不支援
+  // 返回 null，讓使用者知道需要使用頻道 ID
+  if (trimmed.includes("youtube.com/@")) {
+    return null;
+  }
+  
+  return null;
+}
+
 async function searchYoutubeVideos({
   apiKey,
   query,
   maxResults,
   regionCode,
   relevanceLanguage,
+  channelId,
 }: {
   apiKey: string;
   query: string;
   maxResults: number;
   regionCode?: string;
   relevanceLanguage?: string;
+  channelId?: string;
 }): Promise<YoutubeSearchResult> {
   try {
     const u = new URL("https://www.googleapis.com/youtube/v3/search");
@@ -244,6 +271,7 @@ async function searchYoutubeVideos({
     u.searchParams.set("videoEmbeddable", "true");
     u.searchParams.set("safeSearch", "moderate");
     u.searchParams.set("q", query);
+    if (channelId) u.searchParams.set("channelId", channelId);
     if (regionCode) u.searchParams.set("regionCode", regionCode);
     if (relevanceLanguage) u.searchParams.set("relevanceLanguage", relevanceLanguage);
     u.searchParams.set("key", apiKey);
@@ -346,6 +374,7 @@ serve(async (req) => {
       wordCount = 3000,
       provider,
       includeYoutube = false,
+      youtubeChannelId = "",
       includeImages = false,
       includeSourceImages = false,
       sourceUrl = "",
@@ -377,17 +406,25 @@ serve(async (req) => {
         youtubeError = "YouTube API key 尚未設定（YOUTUBE_API_KEY / GOOGLE_API_KEY）";
         console.warn("YouTube API key not configured (YOUTUBE_API_KEY / GOOGLE_API_KEY). Skipping YouTube embeds.");
       } else {
-        const query = `${topic} ${keywords}`.trim();
-        const yt = await searchYoutubeVideos({
-          apiKey: YOUTUBE_API_KEY,
-          query,
-          maxResults: 2,
-          regionCode: language === "zh-TW" ? "TW" : undefined,
-          relevanceLanguage: language === "zh-TW" ? "zh-Hant" : undefined,
-        });
-        youtubeVideos = yt.videos;
-        youtubeError = yt.error;
-        console.log("YouTube videos found:", youtubeVideos.length);
+        // 解析頻道 ID（若有提供）
+        const parsedChannelId = extractChannelId(youtubeChannelId);
+        if (youtubeChannelId && !parsedChannelId) {
+          youtubeError = "無法解析 YouTube 頻道 ID。請使用頻道 ID（UC 開頭）或頻道網址（youtube.com/channel/UCxxxxxx）。@username 格式暫不支援。";
+          console.warn("Invalid YouTube channel ID format:", youtubeChannelId);
+        } else {
+          const query = `${topic} ${keywords}`.trim();
+          const yt = await searchYoutubeVideos({
+            apiKey: YOUTUBE_API_KEY,
+            query,
+            maxResults: 2,
+            regionCode: language === "zh-TW" ? "TW" : undefined,
+            relevanceLanguage: language === "zh-TW" ? "zh-Hant" : undefined,
+            channelId: parsedChannelId || undefined,
+          });
+          youtubeVideos = yt.videos;
+          youtubeError = yt.error;
+          console.log("YouTube videos found:", youtubeVideos.length, parsedChannelId ? `(channel: ${parsedChannelId})` : "(all channels)");
+        }
       }
     }
 
