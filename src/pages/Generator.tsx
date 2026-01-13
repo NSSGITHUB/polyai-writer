@@ -48,6 +48,7 @@ const Generator = () => {
     contentRequirements: "",
     sourceUrl: "",
     includeYoutube: false,
+    youtubeChannelId: "",
     includeSourceImages: false,
     language: "zh-TW",
     style: "professional",
@@ -171,6 +172,7 @@ const Generator = () => {
                 contentRequirements: formData.contentRequirements,
                 sourceUrl: formData.sourceUrl,
                 includeYoutube: formData.includeYoutube,
+                youtubeChannelId: formData.youtubeChannelId,
                 includeSourceImages: formData.includeSourceImages,
                 language: formData.language,
                 style: formData.style,
@@ -578,6 +580,21 @@ const Generator = () => {
                     在文章中插入相關 YouTube 影片（若可用）
                   </Label>
                 </div>
+
+                {formData.includeYoutube && (
+                  <div className="space-y-2 ml-6">
+                    <Label htmlFor="youtubeChannelId">限定 YouTube 頻道（選填）</Label>
+                    <Input
+                      id="youtubeChannelId"
+                      placeholder="例如：UCxxxxxx 或頻道網址"
+                      value={formData.youtubeChannelId}
+                      onChange={(e) => setFormData({ ...formData, youtubeChannelId: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      留空則搜尋全站影片；填入頻道 ID 或網址可限定只抓取該頻道的影片
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex items-center space-x-3">
                   <Checkbox
