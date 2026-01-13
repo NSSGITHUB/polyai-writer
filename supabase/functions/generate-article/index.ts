@@ -503,23 +503,24 @@ serve(async (req) => {
      <h2>主要方案/產品比較分析</h2>
      <p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
      
-     <table class="table table-bordered table-striped">
-       <thead class="table-dark">
-         <tr>
-           ${scrapedImages.length > 0 ? '<th style="width:130px;">產品圖片</th>' : ''}
-           <th>方案/產品</th>
-           <th>核心特色</th>
-           <th>優點</th>
-           <th>缺點</th>
-           <th>適合對象</th>
-           <th>參考價格</th>
+     <table style="width:100%;border-collapse:collapse;border:2px solid #dee2e6;margin:1.5rem 0;font-size:0.95rem;">
+       <thead>
+         <tr style="background-color:#f8f9fa;">
+           ${scrapedImages.length > 0 ? '<th style="width:130px;padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">產品圖片</th>' : ''}
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">方案/產品</th>
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">核心特色</th>
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">優點</th>
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">缺點</th>
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">適合對象</th>
+           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">參考價格</th>
          </tr>
        </thead>
        <tbody>
          <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
+         <!-- 【重要】每個 <td> 都必須包含 style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;" -->
          ${sourcePlans.length > 0 ? `<!-- 【來源網址擷取到的方案/價格】請「優先」使用下列資料，並確保表格中的「方案/產品」與「參考價格」對應一致（不可憑空捏造）：\n${sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\\n')}\n若不足 4 列，剩餘列可以列出同品牌的其他方案/分類，但「參考價格」請填「請見官網」。 -->` : ''}
          ${scrapedImages.length > 0 ? `<!-- 【圖片欄格式】第一欄必須使用 <img> 標籤，並設定 style 控制尺寸，範例：
-         <td><img src="圖片URL" alt="產品名稱" style="max-width:120px;max-height:100px;width:auto;height:auto;object-fit:contain;"></td>
+         <td style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;text-align:center;"><img src="圖片URL" alt="產品名稱" style="max-width:120px;max-height:100px;width:auto;height:auto;object-fit:contain;"></td>
          
          可用的圖片 URL 依序為：
          ${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('\n         ')} -->` : ''}
