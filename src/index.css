@@ -128,7 +128,22 @@ table.table td,
 div[class*="prose"] table td {
   padding: 0.75rem 1rem;
   border: 1px solid hsl(var(--border));
-  vertical-align: top;
+  vertical-align: middle;
+}
+
+/* 表格內圖片樣式 - 限制尺寸 */
+.prose table img,
+table.table img,
+div[class*="prose"] table img,
+.article-content table img {
+  max-width: 120px !important;
+  max-height: 100px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+  border-radius: 4px;
 }
 
 /* 斑馬紋樣式 */

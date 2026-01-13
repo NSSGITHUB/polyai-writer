@@ -506,7 +506,7 @@ serve(async (req) => {
      <table class="table table-bordered table-striped">
        <thead class="table-dark">
          <tr>
-           ${scrapedImages.length > 0 ? '<th>產品圖片</th>' : ''}
+           ${scrapedImages.length > 0 ? '<th style="width:130px;">產品圖片</th>' : ''}
            <th>方案/產品</th>
            <th>核心特色</th>
            <th>優點</th>
@@ -518,14 +518,14 @@ serve(async (req) => {
        <tbody>
          <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
          ${sourcePlans.length > 0 ? `<!-- 【來源網址擷取到的方案/價格】請「優先」使用下列資料，並確保表格中的「方案/產品」與「參考價格」對應一致（不可憑空捏造）：\n${sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\\n')}\n若不足 4 列，剩餘列可以列出同品牌的其他方案/分類，但「參考價格」請填「請見官網」。 -->` : ''}
-         ${scrapedImages.length > 0 ? `<!-- 第一欄請用 <img>，圖片 URL 依序使用：${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('、')} -->` : ''}
+         ${scrapedImages.length > 0 ? `<!-- 【圖片欄格式】第一欄必須使用 <img> 標籤，並設定 style 控制尺寸，範例：
+         <td><img src="圖片URL" alt="產品名稱" style="max-width:120px;max-height:100px;width:auto;height:auto;object-fit:contain;"></td>
+         
+         可用的圖片 URL 依序為：
+         ${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('\n         ')} -->` : ''}
        </tbody>
      </table>
      <p>最後用一段話總結差異與建議選擇方向。</p>
-     ${scrapedImages.length > 0 ? `
-     【重要】若要插入圖片，以下是可用的圖片 URL：
-     ${scrapedImages.map((img, i) => `圖片${i + 1}: ${img}`).join('\n   ')}
-     ` : ''}
 
 4. 【專家建議區塊】
    <h3>💡 專家建議</h3>
