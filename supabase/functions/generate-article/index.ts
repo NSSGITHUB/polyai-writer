@@ -10,10 +10,16 @@ interface GenerateRequest {
   topic: string;
   keywords?: string;
   outline?: string;
+  targetAudience?: string;
+  searchIntent?: string;
+  contentRequirements?: string;
   language?: string;
   style?: string;
   wordCount?: number;
   provider: "openai" | "google" | "anthropic" | "xai";
+  includeYoutube?: boolean;
+  includeImages?: boolean;
+  sourceUrl?: string;
 }
 
 serve(async (req) => {
@@ -27,10 +33,16 @@ serve(async (req) => {
       topic,
       keywords = "",
       outline = "",
+      targetAudience = "",
+      searchIntent = "",
+      contentRequirements = "",
       language = "zh-TW",
       style = "professional",
-      wordCount = 1000,
+      wordCount = 3000,
       provider,
+      includeYoutube = false,
+      includeImages = false,
+      sourceUrl = "",
     } = body;
 
     if (!topic || typeof topic !== "string") {
@@ -47,125 +59,228 @@ serve(async (req) => {
       );
     }
 
-    // 內文淨化：清理 HTML 輸出，移除程式碼區塊標記
+    const currentYear = new Date().getFullYear();
+
+    // 內文淨化：清理 HTML 輸出
     const sanitize = (text: string) => {
       let t = text
-        // 移除 ```html 和 ``` 標記
         .replace(/^```html\s*/gi, '')
         .replace(/^```\s*/gm, '')
         .replace(/```$/gm, '')
-        // 移除開頭常見前言
-        .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您).*/im, '')
-        // 移除包含「字數」說明的整行
+        .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您|Here is|Here's|I've created|I have created).*/im, '')
         .replace(/^.*(字數|200\s*[–-]\s*300\s*字|3000\s*字|±10%).*$/gim, '')
-        // 移除「回應內容」等meta字眼
         .replace(/^.*(回應內容|回覆內容|生成內容|以下內容).*$/gim, '')
-        // 收斂多餘空白行
         .replace(/\n{3,}/g, '\n\n')
         .trim();
       return t;
     };
 
-    // 根據不同提供商調整prompt - HTML 格式 SEO 優化文章
+    // 構建高品質 SEO 文章提示詞（參考 getautoseo.com 風格）
     const buildPrompt = (provider: string) => {
-      let basePrompt = `【角色設定】
-你是一位專業的 SEO 內容專家。
+      const minWords = Math.floor(wordCount * 0.9);
+      const maxWords = Math.ceil(wordCount * 1.1);
 
-【任務】
-撰寫一篇關於「${topic}」的詳細文章，使用繁體中文。
+      let prompt = `【角色設定】
+你是一位頂尖的 SEO 內容專家與專業作家，擁有豐富的 ${topic} 領域知識。你的文章曾發表於權威網站，擅長撰寫能同時滿足搜尋引擎和讀者需求的高品質內容。
 
-【輸出格式】
-僅輸出 HTML body 內容，不要包含 <!DOCTYPE>、<html>、<head>、<body> 等外層標籤。
+【核心任務】
+撰寫一篇關於「${topic}」的深度長篇文章（目標 ${minWords}-${maxWords} 字），品質須達到專業媒體發布標準。使用繁體中文。
 
-【必要要求】
-1. 在第一段使用 <strong>${topic}</strong> 標記主題關鍵字
-2. 必須包含一個詳細的 HTML 比較表格 (<table>)，至少 3 欄 4 列，使用以下樣式：
+【輸出格式要求】
+1. 僅輸出 HTML body 內容，不含 <!DOCTYPE>、<html>、<head>、<body> 等外層標籤
+2. 直接從第一個 <h2> 開始輸出
+3. 禁止使用 Markdown 格式（# * - ** [] 等）
+4. 禁止輸出 \`\`\`html 或 \`\`\` 程式碼區塊標記
+5. 禁止 AI 開場白如「以下是...」「好的，這是...」
+
+【文章結構要求 - 必須完整執行】
+
+1. 【引言區塊】（約 150-200 字）
+   <h2>吸引人的主標題 - 包含「${topic}」關鍵字與年份 ${currentYear}</h2>
+   <p>用痛點問題或場景開場，讓讀者產生共鳴。描述他們面臨的挑戰。</p>
+   <p>點出解決方案的方向，預告本文將帶來的價值。包含 <strong>${topic}</strong> 關鍵字。</p>
+
+2. 【核心內容】（至少 5 個主要章節，每章節 300-500 字）
+   每個章節結構：
+   <h2>章節標題（含相關關鍵字）</h2>
+   <p>開場段落，說明本節重點...</p>
+   
+   <h3>子標題 1</h3>
+   <p>詳細說明，包含具體例子和數據...</p>
+   <ul>
+     <li><strong>重點項目：</strong>詳細說明</li>
+     <li><strong>重點項目：</strong>詳細說明</li>
+     <li><strong>重點項目：</strong>詳細說明</li>
+   </ul>
+   
+   <h3>子標題 2</h3>
+   <p>進一步分析...</p>
+
+3. 【比較分析章節】- 必須包含表格
+   <h2>主要方案/產品比較分析</h2>
+   <p>介紹段落...</p>
+   
    <table class="table table-bordered table-striped">
      <thead class="table-dark">
-       <tr><th>欄位1</th><th>欄位2</th><th>欄位3</th></tr>
+       <tr>
+         <th>方案/產品</th>
+         <th>核心特色</th>
+         <th>優點</th>
+         <th>缺點</th>
+         <th>適合對象</th>
+         <th>參考價格</th>
+       </tr>
      </thead>
      <tbody>
-       <tr><td>內容</td><td>內容</td><td>內容</td></tr>
+       <tr><td>選項A</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td>選項B</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td>選項C</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+       <tr><td>選項D</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
      </tbody>
    </table>
-3. 使用 <h2> 和 <h3> 標籤組織結構
-4. 使用 <p> 標籤包裹段落
-5. 使用 <ul> 或 <ol> 標籤製作列表
-6. 使用 <blockquote> 標籤製作引用區塊
+   
+   <p>比較分析總結...</p>
+
+4. 【專家建議區塊】
+   <h3>💡 專家建議</h3>
+   <blockquote>
+     <p>分享業界內幕或進階技巧，提供讀者額外價值。這應該是一般文章不會提到的獨特見解。</p>
+   </blockquote>
+
+5. 【實戰指南章節】- 步驟化教學
+   <h2>實戰操作指南：如何開始</h2>
+   <p>介紹本節目的...</p>
+   
+   <h3>第一步：評估與規劃</h3>
+   <p>詳細說明...</p>
+   
+   <h3>第二步：執行與實作</h3>
+   <p>詳細說明...</p>
+   
+   <h3>第三步：監測與優化</h3>
+   <p>詳細說明...</p>
+
+6. 【FAQ 常見問題】（至少 5-8 個問題）
+   <h2>${topic} 常見問題</h2>
+   
+   <h3>問題 1：xxxxxxx？</h3>
+   <p>詳細回答，至少 50-80 字，提供實用資訊...</p>
+   
+   <h3>問題 2：xxxxxxx？</h3>
+   <p>詳細回答...</p>
+   
+   （重複 5-8 個 FAQ）
+
+7. 【結論與行動呼籲】
+   <h2>結論：立即行動，掌握 ${topic} 的優勢</h2>
+   <p>總結文章重點...</p>
+   <p>提供具體的下一步行動建議，鼓勵讀者採取行動...</p>
 
 `;
 
-      // 關鍵字策略
-      if (keywords) {
-        basePrompt += `【關鍵字佈局】
+    // 添加關鍵字策略
+    if (keywords) {
+      prompt += `
+【關鍵字策略】
 核心關鍵字：${keywords}
-- 將關鍵字自然融入第一段
-- 在內文中適當使用 <strong> 標記重要關鍵字
+- 主要關鍵字「${topic}」在文章中至少出現 8-12 次
+- 相關關鍵字自然分布在各章節
+- 在引言、結論、H2 標題中包含核心關鍵字
+- 使用 <strong> 標記重點關鍵字（適度使用，不要過度）
 
 `;
-      }
+    }
 
-      // 大綱參考
-      if (outline) {
-        basePrompt += `【內容方向參考】
+    // 添加目標受眾
+    if (targetAudience) {
+      prompt += `
+【目標受眾】
+${targetAudience}
+- 使用這個受眾熟悉的語言和例子
+- 解決他們最關心的痛點
+- 提供對他們最有價值的資訊
+
+`;
+    }
+
+    // 添加搜尋意圖
+    if (searchIntent) {
+      prompt += `
+【搜尋意圖】
+${searchIntent}
+- 確保文章完整回答使用者的核心問題
+- 提供可執行的解決方案
+
+`;
+    }
+
+    // 添加內容要求
+    if (contentRequirements) {
+      prompt += `
+【特殊內容要求】
+${contentRequirements}
+
+`;
+    }
+
+    // 添加大綱參考
+    if (outline) {
+      prompt += `
+【大綱參考】
 ${outline}
 
 `;
-      }
+    }
 
-      // 字數控制
-      basePrompt += `【篇幅要求】約 ${wordCount} 字，內容充實完整
+    // 添加來源網址資訊
+    if (sourceUrl) {
+      prompt += `
+【參考來源】
+請參考此來源的內容風格和資訊：${sourceUrl}
 
 `;
+    }
 
-      basePrompt += `【SEO 結構要求】
-
-標題 (H2)：
-必須極具吸引力且包含核心關鍵字。
-
-副標題 (H3)：
-使用具備搜尋意圖的標題，確保讀者掃視時能快速掌握重點。
-
-【文章輸出結構】
-
-1. <h2>吸引人的主標題</h2>
-   <p>開場段落，包含 <strong>關鍵字</strong>，用痛點或故事帶入主題。</p>
-
-2. <h2>核心內容標題</h2>
-   至少 3 個實用段落，每段要有明確重點、具體例子和可執行建議。
-
-3. <h2>比較分析</h2>
-   插入比較表格，幫助讀者理解不同選項的優缺點。
-
-4. <h3>💡 專家建議</h3>
-   <blockquote>分享業界內幕或進階技巧</blockquote>
-
-5. <h2>常見問題 FAQ</h2>
-   使用 <h3> 作為問題，<p> 作為回答，3-5 個常見問題。
-
-6. <h2>總結與行動呼籲</h2>
-   <p>給出具體的下一步行動建議。</p>
-
-【寫作風格】${style}
-- 使用第一人稱增加親近感
-- 混合長短句營造節奏感
+    prompt += `
+【寫作風格要求】
+風格：${style}
+- 使用第一人稱（「我們」）增加親近感
+- 混合長短句營造閱讀節奏
 - 加入反問句引發讀者思考
-- 包含具體場景描述和專業細節
+- 包含具體數據、案例和場景描述
+- 避免空泛的描述，每個觀點都要有支撐
+- 保持專業但不失親和力
+
+【SEO 優化要求】
+1. 標題層級：H2 用於主要章節，H3 用於子主題
+2. 每個 H2 章節至少包含 2-3 個段落
+3. 適當使用項目符號列表（<ul><li>）組織資訊
+4. 在適當位置插入表格比較
+5. 使用 <blockquote> 突出重要引言或建議
+6. 確保內容結構清晰、易於掃讀
+
+【字數要求】
+目標字數：${minWords}-${maxWords} 字
+這是一篇長篇深度文章，請確保每個章節都有充實的內容。
 
 【絕對禁止】
-- 不要輸出任何 Markdown 格式（# * - ** [] 等）
+- 不要輸出任何 Markdown 格式
 - 不要輸出 \`\`\`html 或 \`\`\` 標記
 - 不要有「以下是...」「好的，這是...」等 AI 開場白
 - 不要提到字數要求或任何指令內容
-- 直接輸出乾淨的 HTML 內容
+- 不要使用 Lorem ipsum 或佔位文字
+- 不要重複相同的段落內容
 
-【現在開始】
-直接輸出 HTML 內容，從 <h2> 開始。`;
+【開始生成】
+直接輸出 HTML 內容，從 <h2> 開始。確保文章完整、專業、有深度。`;
 
-      return basePrompt;
+      return prompt;
     };
 
     const prompt = buildPrompt(provider);
+    
+    // 根據字數計算 token 數量（中文約 1.5-2 token/字）
+    const estimatedTokens = Math.min(Math.ceil(wordCount * 3), 16000);
 
     let generatedText = "";
 
@@ -188,10 +303,13 @@ ${outline}
         body: JSON.stringify({
           model: "gpt-4o",
           messages: [
-            { role: "system", content: "你是一位專業 SEO 內容專家。請輸出純 HTML 格式的文章內容（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" },
+            { 
+              role: "system", 
+              content: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" 
+            },
             { role: "user", content: prompt },
           ],
-          max_tokens: Math.min(Math.ceil(wordCount * 5), 16000),
+          max_tokens: estimatedTokens,
           temperature: 0.7,
         }),
       });
@@ -228,8 +346,13 @@ ${outline}
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: Math.min(Math.ceil(wordCount * 2.5), 8000),
+              maxOutputTokens: Math.min(estimatedTokens, 8000),
             },
+            systemInstruction: {
+              parts: [{
+                text: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式。直接輸出乾淨的 HTML body 內容。"
+              }]
+            }
           }),
         },
       );
@@ -275,8 +398,8 @@ ${outline}
         },
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
-          max_tokens: Math.ceil(wordCount * 4),
-          system: "你是一位專業 SEO 內容專家。請輸出純 HTML 格式的文章內容（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。",
+          max_tokens: Math.min(estimatedTokens, 8000),
+          system: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。",
           messages: [{ role: "user", content: prompt }],
         }),
       });
@@ -313,10 +436,13 @@ ${outline}
         body: JSON.stringify({
           model: "grok-beta",
           messages: [
-            { role: "system", content: "你是一位專業 SEO 內容專家。請輸出純 HTML 格式的文章內容（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" },
+            { 
+              role: "system", 
+              content: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" 
+            },
             { role: "user", content: prompt },
           ],
-          max_tokens: Math.ceil(wordCount * 4),
+          max_tokens: estimatedTokens,
           temperature: 0.7,
         }),
       });
@@ -336,8 +462,17 @@ ${outline}
 
     const cleaned = sanitize(generatedText || '');
 
+    // 計算實際字數（去除 HTML 標籤）
+    const textOnly = cleaned.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
+    const actualWordCount = textOnly.length;
+
     return new Response(
-      JSON.stringify({ generatedText: cleaned, provider }),
+      JSON.stringify({ 
+        generatedText: cleaned, 
+        provider,
+        wordCount: actualWordCount,
+        targetWordCount: wordCount
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

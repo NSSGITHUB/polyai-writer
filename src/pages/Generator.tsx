@@ -46,9 +46,11 @@ const Generator = () => {
     targetAudience: "",
     searchIntent: "",
     contentRequirements: "",
+    sourceUrl: "",
+    includeYoutube: false,
     language: "zh-TW",
     style: "professional",
-    wordCount: "1000",
+    wordCount: "3000",
     selectedModels: {
       openai: true,
       google: false,
@@ -164,6 +166,8 @@ const Generator = () => {
                 targetAudience: formData.targetAudience,
                 searchIntent: formData.searchIntent,
                 contentRequirements: formData.contentRequirements,
+                sourceUrl: formData.sourceUrl,
+                includeYoutube: formData.includeYoutube,
                 language: formData.language,
                 style: formData.style,
                 wordCount: Number(formData.wordCount),
@@ -509,6 +513,35 @@ const Generator = () => {
                     value={formData.contentRequirements}
                     onChange={(e) => setFormData({ ...formData, contentRequirements: e.target.value })}
                   />
+                </div>
+              </div>
+
+              {/* 來源URL和YouTube選項 */}
+              <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-background/30">
+                <h3 className="font-semibold text-lg">進階內容來源（選填）</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="sourceUrl">商品/參考網址</Label>
+                  <Input
+                    id="sourceUrl"
+                    placeholder="例如：https://example.com/product-page"
+                    value={formData.sourceUrl}
+                    onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    輸入參考網址，AI 會根據該頁面內容生成更相關的文章
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="includeYoutube"
+                    checked={formData.includeYoutube}
+                    onCheckedChange={(checked) => setFormData({ ...formData, includeYoutube: !!checked })}
+                  />
+                  <Label htmlFor="includeYoutube" className="cursor-pointer">
+                    在文章中插入相關 YouTube 影片（若可用）
+                  </Label>
                 </div>
               </div>
 
