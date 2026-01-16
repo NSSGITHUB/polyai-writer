@@ -184,6 +184,7 @@ const Generator = () => {
                   wordCount: Number(formData.wordCount),
                   provider,
                 },
+                signal: controller.signal,
               });
               data = response.data;
               error = response.error;
