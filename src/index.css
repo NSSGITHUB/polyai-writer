@@ -88,6 +88,7 @@ div[class*="prose"] table,
   margin: 1.5rem 0;
   font-size: 0.875rem;
   background-color: hsl(var(--card));
+  color: hsl(var(--foreground) / 0.92);
   border-radius: 0.5rem;
   overflow: hidden;
 }
@@ -118,8 +119,8 @@ div[class*="prose"] table th {
   text-align: left;
   font-weight: 600;
   border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important;
 }
 
 /* 表格內容樣式 */
@@ -129,6 +130,8 @@ div[class*="prose"] table td {
   padding: 0.75rem 1rem;
   border: 1px solid hsl(var(--border));
   vertical-align: middle;
+  color: hsl(var(--foreground) / 0.92) !important;
+  background-color: inherit !important;
 }
 
 /* 表格內圖片樣式 - 限制尺寸 */
@@ -146,11 +149,18 @@ div[class*="prose"] table img,
   border-radius: 4px;
 }
 
+/* 表格列預設背景（避免 AI 內嵌白底造成看不到字） */
+.prose table tbody tr,
+table.table tbody tr,
+div[class*="prose"] table tbody tr {
+  background-color: hsl(var(--card)) !important;
+}
+
 /* 斑馬紋樣式 */
 .prose table tbody tr:nth-child(even),
 table.table-striped tbody tr:nth-child(even),
 div[class*="prose"] table tbody tr:nth-child(even) {
-  background-color: hsl(var(--muted) / 0.2);
+  background-color: hsl(var(--muted) / 0.2) !important;
 }
 
 /* 懸停效果 */
@@ -158,7 +168,7 @@ div[class*="prose"] table tbody tr:nth-child(even) {
 table.table tbody tr:hover,
 table.table-hover tbody tr:hover,
 div[class*="prose"] table tbody tr:hover {
-  background-color: hsl(var(--muted) / 0.4);
+  background-color: hsl(var(--muted) / 0.4) !important;
 }
 
 /* 確保表格在手機上可滾動 */

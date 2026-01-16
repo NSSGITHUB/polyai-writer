@@ -277,23 +277,35 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       foundPrices.push({ name, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
     }
 
-    // 最後嘗試其他貨幣格式
-    const otherRegex = /(.{0,40}?)(HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
+    // 最後嘗試其他貨幣格式（支援 $3,600 TWD/1年繳 這種尾綴）
+    const otherRegex = /(.{0,40}?)(HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)(.{0,30}?)/g;
     while ((pMatch = otherRegex.exec(text)) !== null) {
       const before = (pMatch[1] || "").trim();
-      const symbol = pMatch[2] || "";
-      const num = pMatch[3] || "";
-      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
-      
+      const symbol = (pMatch[2] || "").trim();
+      const num = (pMatch[3] || "").trim();
+      const after = (pMatch[4] || "").trim();
+      const numericPrice = parseFloat(num.replace(/[,，]/g, "")) || 0;
+
+      const context = `${before} ${after}`.trim();
+
       // 跳過月費
-      if (before.includes('/月') || before.includes('月費') || before.includes('/mo')) continue;
-      
+      if (/\/月|月費|每月|\/mo/i.test(context)) continue;
+
       let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
       if (name.length > 30) name = name.slice(-30).trim();
       if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
 
-      const currency = detectCurrency(symbol, before);
-      foundPrices.push({ name, priceText: `${symbol}${num}`, numericPrice, currency });
+      // 若尾綴包含 TWD/NTD，強制視為台幣
+      const hasTwdSuffix = /\b(TWD|NTD)\b/i.test(context) || /(新台幣|台幣)/.test(context);
+      const currency = hasTwdSuffix ? "TWD" : detectCurrency(symbol, context);
+
+      // 年繳/年付標記：保留成「/年」，避免 AI 自行換算成月費
+      const isYearly = /年繳|1年|\/年|年付|annual|per\s*year|\/yr/i.test(context);
+      const priceTextBase =
+        currency === "TWD" && symbol === "$" ? `NT$${num}` : `${symbol}${num}`;
+      const priceText = isYearly ? `${priceTextBase}/年` : priceTextBase;
+
+      foundPrices.push({ name, priceText, numericPrice, currency });
     }
 
     // 將找到的價格加入 plans
