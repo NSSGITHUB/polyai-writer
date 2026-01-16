@@ -32,13 +32,6 @@ const Generator = () => {
     selectedSiteIds: [] as string[],
   });
   const [wordPressSites, setWordPressSites] = useState<Array<{id: string, name: string}>>([]);
-
-  // 需登入方可使用
-  if (!localStorage.getItem("user")) {
-    navigate("/auth");
-    return null;
-  }
-
   const [formData, setFormData] = useState({
     topic: "",
     keywords: "",
@@ -64,6 +57,12 @@ const Generator = () => {
   useEffect(() => {
     fetchWordPressSites();
   }, []);
+
+  // 需登入方可使用 - 放在所有 hooks 之後
+  if (!localStorage.getItem("user")) {
+    navigate("/auth");
+    return null;
+  }
 
   const fetchWordPressSites = async () => {
     try {
@@ -162,24 +161,35 @@ const Generator = () => {
           try {
             // 生成文章
             const articleNumber = batchMode ? ` 第${i + 1}篇` : '';
-            const { data, error } = await supabase.functions.invoke('generate-article', {
-              body: {
-                topic: formData.topic,
-                keywords: formData.keywords,
-                outline: formData.outline,
-                targetAudience: formData.targetAudience,
-                searchIntent: formData.searchIntent,
-                contentRequirements: formData.contentRequirements,
-                sourceUrl: formData.sourceUrl,
-                includeYoutube: formData.includeYoutube,
-                youtubeChannelId: formData.youtubeChannelId,
-                includeSourceImages: formData.includeSourceImages,
-                language: formData.language,
-                style: formData.style,
-                wordCount: Number(formData.wordCount),
-                provider,
-              }
-            });
+            // 使用 AbortController 設置更長的超時時間（5分鐘）
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+            
+            let data, error;
+            try {
+              const response = await supabase.functions.invoke('generate-article', {
+                body: {
+                  topic: formData.topic,
+                  keywords: formData.keywords,
+                  outline: formData.outline,
+                  targetAudience: formData.targetAudience,
+                  searchIntent: formData.searchIntent,
+                  contentRequirements: formData.contentRequirements,
+                  sourceUrl: formData.sourceUrl,
+                  includeYoutube: formData.includeYoutube,
+                  youtubeChannelId: formData.youtubeChannelId,
+                  includeSourceImages: formData.includeSourceImages,
+                  language: formData.language,
+                  style: formData.style,
+                  wordCount: Number(formData.wordCount),
+                  provider,
+                },
+              });
+              data = response.data;
+              error = response.error;
+            } finally {
+              clearTimeout(timeoutId);
+            }
 
             if (error) {
               console.error(`${provider} 生成錯誤:`, error);
