@@ -663,6 +663,34 @@ async function callAI(
   return sanitizeHtml(generatedText);
 }
 
+async function asyncPool<T, R>(
+  poolLimit: number,
+  array: T[],
+  iteratorFn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const ret: Promise<R>[] = [];
+  const executing: Promise<unknown>[] = [];
+
+  for (const [i, item] of array.entries()) {
+    const p = Promise.resolve().then(() => iteratorFn(item, i));
+    ret.push(p);
+
+    if (poolLimit <= array.length) {
+      let e: Promise<unknown>;
+      e = p.then(() => {
+        const idx = executing.indexOf(e);
+        if (idx >= 0) executing.splice(idx, 1);
+      });
+      executing.push(e);
+      if (executing.length >= poolLimit) {
+        await Promise.race(executing);
+      }
+    }
+  }
+
+  return Promise.all(ret);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -800,8 +828,10 @@ serve(async (req) => {
     let totalWordCount = 0;
     let totalKeywordCount = 0;
 
-    // 逐段生成
-    for (const section of sections) {
+    // 逐段生成（並行加速，避免連線逾時）
+    const concurrency = 3;
+
+    const generatedSections = await asyncPool(concurrency, sections, async (section) => {
       console.log(`Generating section: ${section.title}...`);
 
       let sectionPrompt = "";
@@ -828,14 +858,14 @@ ${targetAudience ? `目標受眾：${targetAudience}` : ''}
 `;
       } else if (section.type === "comparison") {
         // 準備價格資訊 - 強調使用實際價格
-        const priceInfo = sourcePlans.length > 0 
+        const priceInfo = sourcePlans.length > 0
           ? sourcePlans.map((p, i) => `${i + 1}. ${p.name}：${p.priceText}（這是實際價格，請直接使用）`).join('\n')
           : '請根據主題研究並填入真實的市場價格';
 
         const currencyNote = primaryCurrency === "TWD" ? "以新台幣（NT$）顯示價格" :
-                            primaryCurrency === "JPY" ? "以日圓（¥）顯示價格" :
-                            primaryCurrency === "USD" ? "以美金（$）顯示價格" :
-                            "以來源網頁的貨幣顯示價格";
+          primaryCurrency === "JPY" ? "以日圓（¥）顯示價格" :
+          primaryCurrency === "USD" ? "以美金（$）顯示價格" :
+          "以來源網頁的貨幣顯示價格";
 
         sectionPrompt = `
 撰寫「${section.title}」章節，主題：「${topic}」
@@ -1008,9 +1038,17 @@ ${section.title.includes('趨勢') ? `當前年份：${currentYear}` : ''}
 
       console.log(`Section "${section.title}" - Words: ${sectionWordCount}, Keywords: ${sectionKeywordCount}`);
 
-      fullArticleContent += sectionContent + "\n\n";
-      totalWordCount += sectionWordCount;
-      totalKeywordCount += sectionKeywordCount;
+      return {
+        content: sectionContent,
+        wordCount: sectionWordCount,
+        keywordCount: sectionKeywordCount,
+      };
+    });
+
+    for (const sec of generatedSections) {
+      fullArticleContent += sec.content + "\n\n";
+      totalWordCount += sec.wordCount;
+      totalKeywordCount += sec.keywordCount;
     }
 
     // 若啟用 YouTube，將影片區塊插入到文章前段
