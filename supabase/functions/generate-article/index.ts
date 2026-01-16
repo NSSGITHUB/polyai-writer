@@ -231,13 +231,26 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
     // 這類「方案/價格頁」常見特殊排版，導致一般只抓 NT$ 的規則漏抓。
     // 先用「方案名稱 → 附近的年費價格」做高信心擷取，避免抓到促銷/贈品金額。
     const hostingPlanAnchors: Array<{ name: string; anchor: RegExp }> = [
+      { name: "Linux SSD經濟型主機", anchor: /(Linux\s*SSD\s*經濟型主機|Linux\s*SSD經濟型主機)/gi },
+      { name: "Linux SSD商務型主機", anchor: /(Linux\s*SSD\s*商務型主機|Linux\s*SSD商務型主機)/gi },
+      { name: "Linux SSD旗艦型主機", anchor: /(Linux\s*SSD\s*旗艦型主機|Linux\s*SSD旗艦型主機)/gi },
       { name: "經濟型主機", anchor: /(經濟型主機|經濟型\s*主機|經濟型)/gi },
       { name: "商務型主機", anchor: /(商務型主機|商務型\s*主機|商務型)/gi },
       { name: "旗艦型主機", anchor: /(旗艦型主機|旗艦型\s*主機|旗艦型)/gi },
     ];
 
-    const annualPriceNearAnchor =
-      /(?:NT\$|NTD|\$)?\s*([0-9]{1,3}(?:[，,][0-9]{3})+|[0-9]{3,6})\s*(?:元)?\s*(?:\/?\s*(?:每年|年)|(?:per\s*year)|(?:\/year))/i;
+    // 支援多種價格格式：
+    // 1. $3,600 TWD / 1年繳
+    // 2. NT$3,600/每年
+    // 3. 3,600 元/年
+    const annualPricePatterns = [
+      // $X,XXX TWD / 年繳 格式（如截圖所示）
+      /\$\s*([0-9]{1,3}(?:[，,][0-9]{3})+|[0-9]{3,6})\s*TWD\s*[\/]?\s*(?:1年繳|年繳|每年|年)/i,
+      // NT$X,XXX /每年 格式
+      /(?:NT\$|NTD)\s*([0-9]{1,3}(?:[，,][0-9]{3})+|[0-9]{3,6})\s*(?:元)?\s*(?:[\/]?\s*(?:每年|年)|(?:per\s*year)|(?:\/year))/i,
+      // X,XXX 元/年 格式
+      /([0-9]{1,3}(?:[，,][0-9]{3})+|[0-9]{3,6})\s*元?\s*[\/]?\s*(?:每年|年)/i,
+    ];
 
     const anchoredPrices: Array<{ name: string; priceText: string; numericPrice: number; currency: string }> = [];
 
@@ -245,21 +258,27 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       let mm: RegExpExecArray | null;
       while ((mm = p.anchor.exec(text)) !== null) {
         const start = mm.index ?? 0;
-        const window = text.slice(start, Math.min(text.length, start + 320));
+        const window = text.slice(start, Math.min(text.length, start + 400));
 
         // 避免抓月費
-        if (/\/月|月費|每月|\/mo/i.test(window)) continue;
+        if (/\/月[^年繳]|月費|每月|\/mo/i.test(window)) continue;
 
-        const pm = window.match(annualPriceNearAnchor);
-        if (!pm) continue;
+        // 嘗試所有價格格式
+        let numericPrice = 0;
+        let displayNum = "";
 
-        const rawNum = (pm[1] || "").replace(/[，,]/g, "");
-        const numericPrice = parseFloat(rawNum) || 0;
+        for (const pricePattern of annualPricePatterns) {
+          const pm = window.match(pricePattern);
+          if (pm) {
+            const rawNum = (pm[1] || "").replace(/[，,]/g, "");
+            numericPrice = parseFloat(rawNum) || 0;
+            displayNum = (pm[1] || "").replace(/[，]/g, ",");
+            break;
+          }
+        }
 
-        // 避免抓到小額贈品/折扣
-        if (numericPrice < 2000) continue;
+        if (!numericPrice || numericPrice < 2000) continue;
 
-        const displayNum = (pm[1] || "").replace(/[，]/g, ",");
         anchoredPrices.push({
           name: p.name,
           priceText: `NT$${displayNum} /每年`,
@@ -969,6 +988,12 @@ ${targetAudience ? `目標受眾：${targetAudience}` : ''}
 - 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
 - ${currencyNote}
 - 每格都要填入具體內容，禁止使用「...」、TBD
+
+【★★★ 重要：比較時需強調參考網頁商品的優勢 ★★★】
+- 當比較「來源網頁的商品」與「其他市場上的競品」時，請以來源網頁的產品為主，凸顯其優勢與特色
+- 比較表中，來源網頁商品的「優點」欄位要具體列出 2-3 個差異化亮點
+- 其他競品的「缺點」欄位要客觀指出與來源產品相比的劣勢
+- 在總結段落中，明確推薦來源網頁的產品，並說明推薦理由
 
 【價格資料來源 - 必須使用這些實際價格！】
 ${priceInfo}
