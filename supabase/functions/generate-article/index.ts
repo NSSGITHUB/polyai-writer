@@ -76,7 +76,7 @@ async function scrapeImagesFromUrl(url: string): Promise<string[]> {
   }
 }
 
-type SourcePlan = { name: string; priceText: string; source: "jsonld" | "text" };
+type SourcePlan = { name: string; priceText: string; source: "jsonld" | "text"; currency: string; numericPrice: number };
 
 type YoutubeVideo = { title: string; videoId: string; url: string };
 type YoutubeSearchResult = { videos: YoutubeVideo[]; error?: string; status?: number };
@@ -88,7 +88,31 @@ const escapeHtmlAttr = (s: string) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-function formatPriceText(price: unknown, currency: unknown): string | null {
+// 貨幣優先順序：TWD > JPY > USD > 其他
+const CURRENCY_PRIORITY: Record<string, number> = {
+  "TWD": 1, "NTD": 1,
+  "JPY": 2,
+  "USD": 3,
+  "HKD": 4,
+  "CNY": 5,
+  "EUR": 6,
+};
+
+function detectCurrency(symbol: string, text?: string): string {
+  if (symbol === "NT$" || symbol === "NTD") return "TWD";
+  if (symbol === "¥") {
+    // 嘗試從上下文判斷是日幣還是人民幣
+    if (text && /(日本|日幣|円|yen)/i.test(text)) return "JPY";
+    if (text && /(人民幣|中國|rmb|cny)/i.test(text)) return "CNY";
+    return "JPY"; // 預設為日幣
+  }
+  if (symbol === "$") return "USD";
+  if (symbol === "HK$") return "HKD";
+  if (symbol === "€") return "EUR";
+  return "OTHER";
+}
+
+function formatPriceText(price: unknown, currency: unknown): { text: string; currency: string; numericPrice: number } | null {
   const p = typeof price === "number" ? String(price) : typeof price === "string" ? price.trim() : "";
   if (!p) return null;
 
@@ -98,11 +122,16 @@ function formatPriceText(price: unknown, currency: unknown): string | null {
     c === "USD" ? "$" :
     c === "HKD" ? "HK$" :
     c === "JPY" ? "¥" :
+    c === "CNY" ? "¥" :
+    c === "EUR" ? "€" :
     c ? `${c} ` : "";
 
+  const numericPrice = parseFloat(p.replace(/[,，]/g, '')) || 0;
+  const currencyCode = c || "OTHER";
+
   // Preserve existing prefix if the price string already has it
-  if (/^(NT\$|HK\$|\$|¥)/.test(p)) return p;
-  return `${prefix}${p}`.trim();
+  if (/^(NT\$|HK\$|\$|¥|€)/.test(p)) return { text: p, currency: currencyCode, numericPrice };
+  return { text: `${prefix}${p}`.trim(), currency: currencyCode, numericPrice };
 }
 
 function flattenJsonLd(value: any): any[] {
@@ -157,15 +186,19 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
 
           if (name) {
             if (!offerList.length) {
-              plans.push({ name, priceText: "請見官網", source: "jsonld" });
+              plans.push({ name, priceText: "請見官網", source: "jsonld", currency: "OTHER", numericPrice: 0 });
               continue;
             }
 
             for (const off of offerList) {
               const price = off?.price ?? off?.lowPrice ?? off?.highPrice;
               const currency = off?.priceCurrency;
-              const priceText = formatPriceText(price, currency) ?? "請見官網";
-              plans.push({ name, priceText, source: "jsonld" });
+              const result = formatPriceText(price, currency);
+              if (result) {
+                plans.push({ name, priceText: result.text, source: "jsonld", currency: result.currency, numericPrice: result.numericPrice });
+              } else {
+                plans.push({ name, priceText: "請見官網", source: "jsonld", currency: "OTHER", numericPrice: 0 });
+              }
             }
           }
         }
@@ -183,7 +216,8 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       .replace(/\s+/g, " ")
       .trim();
 
-    const priceRegex = /(.{0,40}?)(NT\$|NTD|HK\$|\$|¥)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
+    // 支援更多貨幣格式
+    const priceRegex = /(.{0,40}?)(NT\$|NTD|HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
     let pMatch: RegExpExecArray | null;
     while ((pMatch = priceRegex.exec(text)) !== null) {
       const before = (pMatch[1] || "").trim();
@@ -201,10 +235,20 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       if (!name) continue;
       if (!/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
 
-      plans.push({ name, priceText, source: "text" });
+      const currency = detectCurrency(symbol, before);
+      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
 
-      if (plans.length >= 12) break;
+      plans.push({ name, priceText, source: "text", currency, numericPrice });
+
+      if (plans.length >= 20) break;
     }
+
+    // 按貨幣優先順序排序：TWD > JPY > USD > 其他
+    plans.sort((a, b) => {
+      const priorityA = CURRENCY_PRIORITY[a.currency] || 99;
+      const priorityB = CURRENCY_PRIORITY[b.currency] || 99;
+      return priorityA - priorityB;
+    });
 
     // Deduplicate + keep top few
     const uniq: SourcePlan[] = [];
@@ -216,6 +260,8 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       uniq.push(p);
       if (uniq.length >= 6) break;
     }
+
+    console.log("Scraped plans with currencies:", uniq.map(p => `${p.name}: ${p.priceText} (${p.currency})`));
 
     return uniq;
   } catch (e) {
@@ -355,6 +401,170 @@ function insertAfterSecondParagraph(html: string, insertion: string): string {
   return html.slice(0, idx) + "\n" + insertion + "\n" + html.slice(idx);
 }
 
+// 計算中文字數
+function calculateChineseWordCount(html: string): number {
+  const text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/\s+/g, '');
+  return text.length;
+}
+
+// 計算關鍵字出現次數
+function countKeywordOccurrences(html: string, keyword: string): number {
+  if (!keyword) return 0;
+  const text = html.replace(/<[^>]*>/g, '');
+  const regex = new RegExp(keyword, 'gi');
+  return (text.match(regex) || []).length;
+}
+
+// 內文淨化：清理 HTML 輸出
+function sanitizeHtml(text: string): string {
+  return text
+    .replace(/^```html\s*/gi, '')
+    .replace(/^```\s*/gm, '')
+    .replace(/```$/gm, '')
+    .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您|Here is|Here's|I've created|I have created).*/im, '')
+    .replace(/^.*(字數|200\s*[–-]\s*300\s*字|3000\s*字|±10%).*$/gim, '')
+    .replace(/^.*(回應內容|回覆內容|生成內容|以下內容).*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// 分段生成的章節定義
+interface SectionConfig {
+  title: string;
+  type: 'intro' | 'content' | 'comparison' | 'guide' | 'faq' | 'conclusion';
+  minWords: number;
+  minKeywordCount: number;
+}
+
+// 呼叫 AI API
+async function callAI(
+  provider: string,
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number
+): Promise<string> {
+  let generatedText = "";
+
+  if (provider === "openai") {
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("OpenAI error:", error);
+      throw new Error("OpenAI API error");
+    }
+
+    const data = await response.json();
+    generatedText = data.choices?.[0]?.message?.content ?? "";
+  } else if (provider === "google") {
+    const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
+    if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY not configured");
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: maxTokens,
+          },
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          }
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Google error:", errorText);
+      throw new Error("Google API error");
+    }
+
+    const data = await response.json();
+    generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  } else if (provider === "anthropic") {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Anthropic error:", error);
+      throw new Error("Anthropic API error");
+    }
+
+    const data = await response.json();
+    generatedText = data.content?.[0]?.text ?? "";
+  } else if (provider === "xai") {
+    const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
+    if (!XAI_API_KEY) throw new Error("XAI_API_KEY not configured");
+
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${XAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "grok-beta",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("xAI error:", error);
+      throw new Error("xAI API error");
+    }
+
+    const data = await response.json();
+    generatedText = data.choices?.[0]?.message?.content ?? "";
+  }
+
+  return sanitizeHtml(generatedText);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -371,7 +581,7 @@ serve(async (req) => {
       contentRequirements = "",
       language = "zh-TW",
       style = "professional",
-      wordCount = 3000,
+      wordCount = 5000,
       provider,
       includeYoutube = false,
       youtubeChannelId = "",
@@ -389,13 +599,16 @@ serve(async (req) => {
     }
 
     // 從來源頁面嘗試擷取「方案/商品」與「價格」（比較表格用）
-    // 注意：若使用者輸入的是首頁/分類頁，可能抓不到明確的方案價格
     let sourcePlans: SourcePlan[] = [];
     if (sourceUrl) {
       console.log("Scraping plans from:", sourceUrl);
       sourcePlans = await scrapePlansFromUrl(sourceUrl);
       console.log("Scraped plans:", sourcePlans.length);
     }
+
+    // 決定價格顯示的主要貨幣（根據抓取到的資料）
+    const primaryCurrency = sourcePlans.length > 0 ? sourcePlans[0].currency : "TWD";
+    console.log("Primary currency:", primaryCurrency);
 
     // 搜尋 YouTube 影片（若啟用）
     let youtubeVideos: YoutubeVideo[] = [];
@@ -406,7 +619,6 @@ serve(async (req) => {
         youtubeError = "YouTube API key 尚未設定（YOUTUBE_API_KEY / GOOGLE_API_KEY）";
         console.warn("YouTube API key not configured (YOUTUBE_API_KEY / GOOGLE_API_KEY). Skipping YouTube embeds.");
       } else {
-        // 解析頻道 ID（若有提供）
         const parsedChannelId = extractChannelId(youtubeChannelId);
         if (youtubeChannelId && !parsedChannelId) {
           youtubeError = "無法解析 YouTube 頻道 ID。請使用頻道 ID（UC 開頭）或頻道網址（youtube.com/channel/UCxxxxxx）。@username 格式暫不支援。";
@@ -443,439 +655,280 @@ serve(async (req) => {
     }
 
     const currentYear = new Date().getFullYear();
+    const todayDate = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 內文淨化：清理 HTML 輸出
-    const sanitize = (text: string) => {
-      let t = text
-        .replace(/^```html\s*/gi, '')
-        .replace(/^```\s*/gm, '')
-        .replace(/```$/gm, '')
-        .replace(/^\s*(好的，?這是一篇|好的，這是|以下是|根據您的要求|如您所需|符合您要求|我將為您|我會為您|Here is|Here's|I've created|I have created).*/im, '')
-        .replace(/^.*(字數|200\s*[–-]\s*300\s*字|3000\s*字|±10%).*$/gim, '')
-        .replace(/^.*(回應內容|回覆內容|生成內容|以下內容).*$/gim, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-      return t;
-    };
+    // 系統提示詞
+    const systemPrompt = `你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。
 
-    // 構建高品質 SEO 文章提示詞（參考 getautoseo.com 風格）
-    const buildPrompt = (provider: string) => {
-      const minWords = Math.floor(wordCount * 0.9);
-      const maxWords = Math.ceil(wordCount * 1.1);
+【絕對禁止】
+- 不要輸出任何 Markdown 格式（# * - ** [] 等）
+- 不要輸出 \`\`\`html 或 \`\`\` 標記
+- 不要有「以下是...」「好的，這是...」等 AI 開場白
+- 不要使用「...」(三個點) 這類佔位符
+- 不要使用 TBD、Lorem ipsum 或任何佔位文字
 
-      let prompt = `【角色設定】
-你是一位頂尖的 SEO 內容專家與專業作家，擁有豐富的 ${topic} 領域知識。你的文章曾發表於權威網站，擅長撰寫能同時滿足搜尋引擎和讀者需求的高品質內容。
+直接輸出乾淨的 HTML body 內容。`;
 
-【核心任務】
-撰寫一篇關於「${topic}」的深度長篇文章（目標 ${minWords}-${maxWords} 字），品質須達到專業媒體發布標準。使用繁體中文。
-
-【輸出格式要求】
-1. 僅輸出 HTML body 內容，不含 <!DOCTYPE>、<html>、<head>、<body> 等外層標籤
-2. 直接從第一個 <h2> 開始輸出
-3. 禁止使用 Markdown 格式（# * - ** [] 等）
-4. 禁止輸出 \`\`\`html 或 \`\`\` 程式碼區塊標記
-5. 禁止 AI 開場白如「以下是...」「好的，這是...」
-
-【文章結構要求 - 必須完整執行】
-
-1. 【引言區塊】（約 150-200 字）
-   <h2>吸引人的主標題 - 包含「${topic}」關鍵字與年份 ${currentYear}</h2>
-   <p>用痛點問題或場景開場，讓讀者產生共鳴。描述他們面臨的挑戰。</p>
-   <p>點出解決方案的方向，預告本文將帶來的價值。包含 <strong>${topic}</strong> 關鍵字。</p>
-
-2. 【核心內容】（至少 5 個主要章節，每章節 300-500 字）
-   每個章節結構：
-   <h2>章節標題（含相關關鍵字）</h2>
-   <p>開場段落，說明本節重點...</p>
-   
-   <h3>子標題 1</h3>
-   <p>詳細說明，包含具體例子和數據...</p>
-   <ul>
-     <li><strong>重點項目：</strong>詳細說明</li>
-     <li><strong>重點項目：</strong>詳細說明</li>
-     <li><strong>重點項目：</strong>詳細說明</li>
-   </ul>
-   
-   <h3>子標題 2</h3>
-   <p>進一步分析...</p>
-
-  3. 【比較分析章節】- 必須包含表格${scrapedImages.length > 0 ? '（含產品圖片）' : ''}${sourcePlans.length > 0 ? '（方案/價格以來源網址為準）' : ''}
-     <h2>主要方案/產品比較分析</h2>
-     <p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
-     
-     <table style="width:100%;border-collapse:collapse;border:2px solid #dee2e6;margin:1.5rem 0;font-size:0.95rem;">
-       <thead>
-         <tr style="background-color:#f8f9fa;">
-           ${scrapedImages.length > 0 ? '<th style="width:130px;padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">產品圖片</th>' : ''}
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">方案/產品</th>
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">核心特色</th>
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">優點</th>
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">缺點</th>
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">適合對象</th>
-           <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">參考價格</th>
-         </tr>
-       </thead>
-       <tbody>
-         <!-- 產生 4 列比較資料：每一格都要填入具體內容；禁止使用「...」、TBD、或任何佔位文字 -->
-         <!-- 【重要】每個 <td> 都必須包含 style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;" -->
-         ${sourcePlans.length > 0 ? `<!-- 【來源網址擷取到的方案/價格】請「優先」使用下列資料，並確保表格中的「方案/產品」與「參考價格」對應一致（不可憑空捏造）：\n${sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\\n')}\n若不足 4 列，剩餘列可以列出同品牌的其他方案/分類，但「參考價格」請填「請見官網」。 -->` : ''}
-         ${scrapedImages.length > 0 ? `<!-- 【圖片欄格式】第一欄必須使用 <img> 標籤，並設定 style 控制尺寸，範例：
-         <td style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;text-align:center;"><img src="圖片URL" alt="產品名稱" style="max-width:120px;max-height:100px;width:auto;height:auto;object-fit:contain;"></td>
-         
-         可用的圖片 URL 依序為：
-         ${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('\n         ')} -->` : ''}
-       </tbody>
-     </table>
-     <p>最後用一段話總結差異與建議選擇方向。</p>
-
-4. 【專家建議區塊】
-   <h3>💡 專家建議</h3>
-   <blockquote>
-     <p>分享業界內幕或進階技巧，提供讀者額外價值。這應該是一般文章不會提到的獨特見解。</p>
-   </blockquote>
-
-5. 【實戰指南章節】- 步驟化教學
-   <h2>實戰操作指南：如何開始</h2>
-   <p>介紹本節目的...</p>
-   
-   <h3>第一步：評估與規劃</h3>
-   <p>詳細說明...</p>
-   
-   <h3>第二步：執行與實作</h3>
-   <p>詳細說明...</p>
-   
-   <h3>第三步：監測與優化</h3>
-   <p>詳細說明...</p>
-
-6. 【FAQ 常見問題】（至少 5-8 個問題）
-   <h2>${topic} 常見問題</h2>
-   
-   <h3>問題 1：xxxxxxx？</h3>
-   <p>詳細回答，至少 50-80 字，提供實用資訊...</p>
-   
-   <h3>問題 2：xxxxxxx？</h3>
-   <p>詳細回答...</p>
-   
-   （重複 5-8 個 FAQ）
-
-7. 【結論與行動呼籲】
-   <h2>結論：立即行動，掌握 ${topic} 的優勢</h2>
-   <p>總結文章重點...</p>
-   <p>提供具體的下一步行動建議，鼓勵讀者採取行動...</p>
-
-`;
-
-    // 添加關鍵字策略
-    if (keywords) {
-      prompt += `
-【關鍵字策略】
-核心關鍵字：${keywords}
-- 主要關鍵字「${topic}」在文章中至少出現 8-12 次
-- 相關關鍵字自然分布在各章節
-- 在引言、結論、H2 標題中包含核心關鍵字
-- 使用 <strong> 標記重點關鍵字（適度使用，不要過度）
-
-`;
-    }
-
-    // 添加目標受眾
-    if (targetAudience) {
-      prompt += `
-【目標受眾】
-${targetAudience}
-- 使用這個受眾熟悉的語言和例子
-- 解決他們最關心的痛點
-- 提供對他們最有價值的資訊
-
-`;
-    }
-
-    // 添加搜尋意圖
-    if (searchIntent) {
-      prompt += `
-【搜尋意圖】
-${searchIntent}
-- 確保文章完整回答使用者的核心問題
-- 提供可執行的解決方案
-
-`;
-    }
-
-    // 添加內容要求
-    if (contentRequirements) {
-      prompt += `
-【特殊內容要求】
-${contentRequirements}
-
-`;
-    }
-
-    // 添加大綱參考
-    if (outline) {
-      prompt += `
-【大綱參考】
-${outline}
-
-`;
-    }
-
-    // 添加來源網址資訊
-    if (sourceUrl) {
-      prompt += `
-【參考來源】
-請參考此來源的內容風格和資訊：${sourceUrl}
-
-`;
-    }
-
-    prompt += `
-【寫作風格要求】
-風格：${style}
-- 使用第一人稱（「我們」）增加親近感
-- 混合長短句營造閱讀節奏
-- 加入反問句引發讀者思考
-- 包含具體數據、案例和場景描述
-- 避免空泛的描述，每個觀點都要有支撐
-- 保持專業但不失親和力
-
-【SEO 優化要求】
-1. 標題層級：H2 用於主要章節，H3 用於子主題
-2. 每個 H2 章節至少包含 2-3 個段落
-3. 適當使用項目符號列表（<ul><li>）組織資訊
-4. 在適當位置插入表格比較
-5. 使用 <blockquote> 突出重要引言或建議
-6. 確保內容結構清晰、易於掃讀
-
-【字數要求】
-目標字數：${minWords}-${maxWords} 字
-這是一篇長篇深度文章，請確保每個章節都有充實的內容。
-
- 【絕對禁止】
- - 不要輸出任何 Markdown 格式
- - 不要輸出 \`\`\`html 或 \`\`\` 標記
- - 不要有「以下是...」「好的，這是...」等 AI 開場白
- - 不要提到字數要求或任何指令內容
- - 不要使用 Lorem ipsum 或佔位文字
- - 不要輸出「...」(三個點) 這類佔位符
- - 不要重複相同的段落內容
- 
- 【開始生成】
- 直接輸出 HTML 內容，從 <h2> 開始。確保文章完整、專業、有深度。`;
-
-      return prompt;
-    };
-
-    const prompt = buildPrompt(provider);
+    // ============ 分段生成文章 ============
+    console.log("Starting segmented article generation for:", topic);
     
-    // 根據字數計算 token 數量（中文約 1.5-2 token/字）
-    const estimatedTokens = Math.min(Math.ceil(wordCount * 3), 16000);
+    // 定義各章節
+    const sections: SectionConfig[] = [
+      { title: "前言與市場概況", type: "intro", minWords: 300, minKeywordCount: 2 },
+      { title: `${currentYear}年關鍵趨勢分析`, type: "content", minWords: 500, minKeywordCount: 3 },
+      { title: "核心功能與技術解析", type: "content", minWords: 500, minKeywordCount: 3 },
+      { title: "熱門產品詳細比較", type: "comparison", minWords: 600, minKeywordCount: 2 },
+      { title: "實戰操作教學指南", type: "guide", minWords: 500, minKeywordCount: 3 },
+      { title: "專家進階技巧", type: "content", minWords: 400, minKeywordCount: 2 },
+      { title: "成功案例分享", type: "content", minWords: 400, minKeywordCount: 2 },
+      { title: "常見問題", type: "faq", minWords: 600, minKeywordCount: 4 },
+      { title: "結論與建議", type: "conclusion", minWords: 300, minKeywordCount: 2 },
+    ];
 
-    let generatedText = "";
+    let fullArticleContent = "";
+    let totalWordCount = 0;
+    let totalKeywordCount = 0;
 
-    // OpenAI API
-    if (provider === "openai") {
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-      if (!OPENAI_API_KEY) {
-        return new Response(
-          JSON.stringify({ error: "OPENAI_API_KEY not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+    // 逐段生成
+    for (const section of sections) {
+      console.log(`Generating section: ${section.title}...`);
+
+      let sectionPrompt = "";
+
+      // 根據章節類型構建不同的提示詞
+      if (section.type === "intro") {
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>${section.title}：${topic}完整指南 ${currentYear}</h2>
+<p>開場段落，用痛點問題或場景開場...</p>
+<p>描述讀者面臨的挑戰...</p>
+<p>預告本文將帶來的價值...</p>
+
+【內容要求】
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- 包含具體數據或趨勢
+- 3-4 個段落
+
+${keywords ? `相關關鍵字：${keywords}` : ''}
+${targetAudience ? `目標受眾：${targetAudience}` : ''}
+`;
+      } else if (section.type === "comparison") {
+        // 準備價格資訊
+        const priceInfo = sourcePlans.length > 0 
+          ? sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\n')
+          : '請根據主題研究並填入真實的市場價格';
+
+        const currencyNote = primaryCurrency === "TWD" ? "以新台幣（NT$）顯示價格" :
+                            primaryCurrency === "JPY" ? "以日圓（¥）顯示價格" :
+                            primaryCurrency === "USD" ? "以美金（$）顯示價格" :
+                            "以來源網頁的貨幣顯示價格";
+
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>${section.title}</h2>
+<p>說明本段落會從功能、成本、效能與適用情境比較不同方案，協助讀者快速做決策。</p>
+
+<table style="width:100%;border-collapse:collapse;border:2px solid #dee2e6;margin:1.5rem 0;font-size:0.95rem;">
+  <thead>
+    <tr style="background-color:#f8f9fa;">
+      ${scrapedImages.length > 0 ? '<th style="width:130px;padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">產品圖片</th>' : ''}
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">方案/產品</th>
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">核心特色</th>
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">優點</th>
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">缺點</th>
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">適合對象</th>
+      <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">參考價格</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- 產生 4-6 列比較資料 -->
+  </tbody>
+</table>
+
+<p>總結差異與建議選擇方向。</p>
+
+【重要規則】
+- 每個 <td> 必須包含 style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;"
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- ${currencyNote}
+- 每格都要填入具體內容，禁止使用「...」、TBD
+
+【價格資料來源】優先使用以下資料：
+${priceInfo}
+
+${scrapedImages.length > 0 ? `【圖片欄格式】
+<td style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;text-align:center;"><img src="圖片URL" alt="產品名稱" style="max-width:120px;max-height:100px;width:auto;height:auto;object-fit:contain;"></td>
+
+可用的圖片 URL：
+${scrapedImages.map((img, i) => `(${i + 1}) ${img}`).join('\n')}` : ''}
+`;
+      } else if (section.type === "guide") {
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>${section.title}</h2>
+<p>介紹本節目的...</p>
+
+<h3>第一步：評估與規劃</h3>
+<p>詳細說明...</p>
+<ul>
+  <li><strong>重點項目：</strong>詳細說明</li>
+</ul>
+
+<h3>第二步：執行與實作</h3>
+<p>詳細說明...</p>
+
+<h3>第三步：監測與優化</h3>
+<p>詳細說明...</p>
+
+<h3>💡 專家建議</h3>
+<blockquote>
+  <p>分享業界內幕或進階技巧...</p>
+</blockquote>
+
+【內容要求】
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- 每個步驟都要有詳細的操作說明
+- 包含實用的小技巧
+
+${keywords ? `相關關鍵字：${keywords}` : ''}
+`;
+      } else if (section.type === "faq") {
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>${topic} 常見問題</h2>
+
+<h3>問題 1：${topic}是什麼？</h3>
+<p>詳細回答，至少 60 字...</p>
+
+<h3>問題 2：如何選擇適合的${topic}？</h3>
+<p>詳細回答...</p>
+
+<h3>問題 3：${topic}的價格範圍是多少？</h3>
+<p>詳細回答...</p>
+
+（繼續 5-8 個 FAQ）
+
+【內容要求】
+- 產生 6-8 個常見問題
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- 每個回答至少 60 字，提供實用資訊
+- 問題要涵蓋：定義、選擇、價格、使用、比較、注意事項等面向
+
+${keywords ? `相關關鍵字：${keywords}` : ''}
+`;
+      } else if (section.type === "conclusion") {
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>結論：立即行動，掌握 ${topic} 的優勢</h2>
+<p>總結文章重點...</p>
+<p>提供具體的下一步行動建議...</p>
+<p>鼓勵讀者採取行動...</p>
+
+【內容要求】
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- 總結文章中提到的關鍵要點
+- 給出明確的行動呼籲
+
+${keywords ? `相關關鍵字：${keywords}` : ''}
+`;
+      } else {
+        // content type
+        sectionPrompt = `
+撰寫「${section.title}」章節，主題：「${topic}」
+
+【格式要求】
+<h2>${section.title}</h2>
+<p>開場段落，說明本節重點...</p>
+
+<h3>子標題 1</h3>
+<p>詳細說明，包含具體例子和數據...</p>
+<ul>
+  <li><strong>重點項目：</strong>詳細說明</li>
+  <li><strong>重點項目：</strong>詳細說明</li>
+</ul>
+
+<h3>子標題 2</h3>
+<p>進一步分析...</p>
+
+<h3>子標題 3</h3>
+<p>補充說明...</p>
+
+【內容要求】
+- 字數：至少 ${section.minWords} 字
+- 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
+- 包含 2-3 個 h3 子標題
+- 每個子標題下至少 2 個段落
+- 使用列表整理重點
+
+${keywords ? `相關關鍵字：${keywords}` : ''}
+${targetAudience ? `目標受眾：${targetAudience}` : ''}
+${section.title.includes('趨勢') ? `當前年份：${currentYear}` : ''}
+`;
       }
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            { 
-              role: "system", 
-              content: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" 
-            },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: estimatedTokens,
-          temperature: 0.7,
-        }),
-      });
+      // 呼叫 AI 生成此章節
+      const maxTokens = Math.ceil(section.minWords * 3);
+      const sectionContent = await callAI(provider, sectionPrompt, systemPrompt, maxTokens);
 
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("OpenAI error:", error);
-        return new Response(
-          JSON.stringify({ error: "OpenAI API error" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
+      // 計算此章節的字數和關鍵字次數
+      const sectionWordCount = calculateChineseWordCount(sectionContent);
+      const sectionKeywordCount = countKeywordOccurrences(sectionContent, topic);
 
-      const data = await response.json();
-      generatedText = data.choices?.[0]?.message?.content ?? "";
+      console.log(`Section "${section.title}" - Words: ${sectionWordCount}, Keywords: ${sectionKeywordCount}`);
+
+      fullArticleContent += sectionContent + "\n\n";
+      totalWordCount += sectionWordCount;
+      totalKeywordCount += sectionKeywordCount;
     }
 
-    // Google Gemini API
-    else if (provider === "google") {
-      const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
-      if (!GOOGLE_API_KEY) {
-        return new Response(
-          JSON.stringify({ error: "GOOGLE_API_KEY not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: Math.min(estimatedTokens, 8000),
-            },
-            systemInstruction: {
-              parts: [{
-                text: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式。直接輸出乾淨的 HTML body 內容。"
-              }]
-            }
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Google error:", errorText);
-
-        let message = "Google API error";
-        try {
-          const parsed = JSON.parse(errorText);
-          message = parsed?.error?.message || message;
-        } catch {
-          // ignore JSON parse errors
-        }
-
-        return new Response(
-          JSON.stringify({ error: message, provider: "google", status: response.status }),
-          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const data = await response.json();
-      generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    }
-
-    // Anthropic Claude API
-    else if (provider === "anthropic") {
-      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!ANTHROPIC_API_KEY) {
-        return new Response(
-          JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
-          max_tokens: Math.min(estimatedTokens, 8000),
-          system: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。",
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Anthropic error:", error);
-        return new Response(
-          JSON.stringify({ error: "Anthropic API error" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const data = await response.json();
-      generatedText = data.content?.[0]?.text ?? "";
-    }
-
-    // xAI Grok API
-    else if (provider === "xai") {
-      const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
-      if (!XAI_API_KEY) {
-        return new Response(
-          JSON.stringify({ error: "XAI_API_KEY not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${XAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "grok-beta",
-          messages: [
-            { 
-              role: "system", 
-              content: "你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。絕對禁止使用 Markdown 格式和 ```html 標記。直接輸出乾淨的 HTML body 內容。" 
-            },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: estimatedTokens,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("xAI error:", error);
-        return new Response(
-          JSON.stringify({ error: "xAI API error" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const data = await response.json();
-      generatedText = data.choices?.[0]?.message?.content ?? "";
-    }
-
-    let cleaned = sanitize(generatedText || '');
-
-    // 若啟用 YouTube，將影片區塊插入到文章前段（第二個段落後）
+    // 若啟用 YouTube，將影片區塊插入到文章前段
     if (includeYoutube && youtubeVideos.length > 0) {
       const youtubeSection = buildYoutubeSection(topic, youtubeVideos);
-      cleaned = insertAfterSecondParagraph(cleaned, youtubeSection);
+      fullArticleContent = insertAfterSecondParagraph(fullArticleContent, youtubeSection);
     }
 
-    // 計算實際字數（去除 HTML 標籤）
-    const visibleText = cleaned
+    // 計算最終字數
+    const finalWordCount = calculateChineseWordCount(fullArticleContent);
+    const finalKeywordCount = countKeywordOccurrences(fullArticleContent, topic);
+    
+    // 計算中日韓字符數
+    const visibleText = fullArticleContent
       .replace(/<[^>]*>/g, ' ')
       .replace(/&nbsp;/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    const condensed = visibleText.replace(/\s+/g, '');
-    const actualWordCount = condensed.length;
     const cjkCount = (visibleText.match(/[\u4E00-\u9FFF]/g) || []).length;
+
+    console.log(`Article generation complete. Total words: ${finalWordCount}, Keywords: ${finalKeywordCount}`);
 
     return new Response(
       JSON.stringify({
-        generatedText: cleaned,
+        generatedText: fullArticleContent,
         provider,
-        wordCount: actualWordCount,
+        wordCount: finalWordCount,
         cjkCount,
         targetWordCount: wordCount,
+        keywordCount: finalKeywordCount,
         youtubeCount: youtubeVideos.length,
         youtubeError: youtubeError ?? null,
         sourcePlansCount: sourcePlans.length,
+        primaryCurrency,
+        sectionsGenerated: sections.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
