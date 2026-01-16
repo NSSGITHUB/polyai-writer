@@ -227,39 +227,64 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       .replace(/\s+/g, " ")
       .trim();
 
-    // 改進的價格正則：支援 NT$ 1,234 或 $1234 或 ¥1,234 或 1,234元 格式
-    // 優先抓取年費/總價（較大金額），避免月費
-    const pricePatterns = [
-      // NT$ 格式
-      /(.{0,50}?)(NT\$|NTD)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi,
-      // 數字+元 格式（台灣常見）
-      /(.{0,50}?)([0-9][0-9,]+)\s*元(?:\/年|年)?/gi,
-      // $ 格式（但排除月費）
-      /(.{0,50}?)(\$)\s*([0-9][0-9,]*(?:\.[0-9]+)?)(?!\/月|\/mo)/gi,
+    // ====== 特別處理主機類網站的價格對照 ======
+    // 先從文本中尋找常見的主機方案名稱關鍵字
+    const planTypeKeywords = [
+      { pattern: /(經濟型|基本型|入門|starter|basic|economy)/i, name: "經濟型主機" },
+      { pattern: /(商務型|進階|business|professional|pro)/i, name: "商務型主機" },
+      { pattern: /(旗艦型|企業型|premium|enterprise|ultimate)/i, name: "旗艦型主機" },
+      { pattern: /(標準型|standard)/i, name: "標準型主機" },
     ];
 
+    // 找出所有 NT$ 價格及其周邊上下文（擴大範圍）
+    const priceContextRegex = /(.{0,100}?)(NT\$|NTD)\s*([0-9][0-9,]*(?:\.[0-9]+)?)(.{0,50}?)/gi;
     const foundPrices: Array<{name: string; priceText: string; numericPrice: number; currency: string}> = [];
-
-    // 先用 NT$ 格式
-    const ntdRegex = /(.{0,50}?)(NT\$|NTD)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi;
+    
     let pMatch: RegExpExecArray | null;
-    while ((pMatch = ntdRegex.exec(text)) !== null) {
+    while ((pMatch = priceContextRegex.exec(text)) !== null) {
       const before = (pMatch[1] || "").trim();
       const num = pMatch[3] || "";
+      const after = (pMatch[4] || "").trim();
       const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
+      const fullContext = `${before} ${after}`;
       
-      // 跳過月費（通常較小金額且包含/月）
-      if (before.includes('/月') || before.includes('月費') || before.includes('每月')) continue;
-      
-      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
-      if (name.length > 40) name = name.slice(-40).trim();
-      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+      // 跳過月費
+      if (/\/月|月費|每月|\/mo/i.test(fullContext)) continue;
+      // 跳過太小的金額（可能是附加費用）
+      if (numericPrice < 1000) continue;
 
-      foundPrices.push({ name, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
+      // 嘗試從上下文中匹配方案類型
+      let matchedName = "";
+      for (const kw of planTypeKeywords) {
+        if (kw.pattern.test(fullContext)) {
+          matchedName = kw.name;
+          break;
+        }
+      }
+
+      // 如果沒匹配到，使用原本的前綴提取邏輯
+      if (!matchedName) {
+        matchedName = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
+        if (matchedName.length > 40) matchedName = matchedName.slice(-40).trim();
+        // 再次嘗試提取有意義的名稱（找最後一個中文詞組）
+        const chineseMatch = matchedName.match(/([\u4E00-\u9FFF]+[型主機方案]+)/);
+        if (chineseMatch) {
+          matchedName = chineseMatch[1];
+        }
+      }
+
+      if (!matchedName || !/[\u4E00-\u9FFFA-Za-z]/.test(matchedName)) continue;
+
+      foundPrices.push({ 
+        name: matchedName, 
+        priceText: `NT$${num}`, 
+        numericPrice, 
+        currency: "TWD" 
+      });
     }
 
     // 再用「數字+元」格式
-    const yuanRegex = /(.{0,50}?)([0-9][0-9,]+)\s*元(?:\/年|年)?/gi;
+    const yuanRegex = /(.{0,80}?)([0-9][0-9,]+)\s*元(?:\/年|年)?/gi;
     while ((pMatch = yuanRegex.exec(text)) !== null) {
       const before = (pMatch[1] || "").trim();
       const num = pMatch[2] || "";
@@ -267,49 +292,51 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       
       // 跳過月費
       if (before.includes('/月') || before.includes('月費') || before.includes('每月')) continue;
-      // 跳過太小的金額（可能是月費）
-      if (numericPrice < 500) continue;
+      // 跳過太小的金額
+      if (numericPrice < 1000) continue;
       
-      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
-      if (name.length > 40) name = name.slice(-40).trim();
-      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+      // 嘗試匹配方案類型
+      let matchedName = "";
+      for (const kw of planTypeKeywords) {
+        if (kw.pattern.test(before)) {
+          matchedName = kw.name;
+          break;
+        }
+      }
 
-      foundPrices.push({ name, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
+      if (!matchedName) {
+        matchedName = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
+        if (matchedName.length > 40) matchedName = matchedName.slice(-40).trim();
+      }
+      
+      if (!matchedName || !/[\u4E00-\u9FFFA-Za-z]/.test(matchedName)) continue;
+
+      foundPrices.push({ name: matchedName, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
     }
 
-    // 最後嘗試其他貨幣格式（支援 $3,600 TWD/1年繳 這種尾綴）
-    const otherRegex = /(.{0,40}?)(HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)(.{0,30}?)/g;
-    while ((pMatch = otherRegex.exec(text)) !== null) {
-      const before = (pMatch[1] || "").trim();
-      const symbol = (pMatch[2] || "").trim();
-      const num = (pMatch[3] || "").trim();
-      const after = (pMatch[4] || "").trim();
-      const numericPrice = parseFloat(num.replace(/[,，]/g, "")) || 0;
-
-      const context = `${before} ${after}`.trim();
-
-      // 跳過月費
-      if (/\/月|月費|每月|\/mo/i.test(context)) continue;
-
-      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
-      if (name.length > 30) name = name.slice(-30).trim();
-      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
-
-      // 若尾綴包含 TWD/NTD，強制視為台幣
-      const hasTwdSuffix = /\b(TWD|NTD)\b/i.test(context) || /(新台幣|台幣)/.test(context);
-      const currency = hasTwdSuffix ? "TWD" : detectCurrency(symbol, context);
-
-      // 年繳/年付標記：保留成「/年」，避免 AI 自行換算成月費
-      const isYearly = /年繳|1年|\/年|年付|annual|per\s*year|\/yr/i.test(context);
-      const priceTextBase =
-        currency === "TWD" && symbol === "$" ? `NT$${num}` : `${symbol}${num}`;
-      const priceText = isYearly ? `${priceTextBase}/年` : priceTextBase;
-
-      foundPrices.push({ name, priceText, numericPrice, currency });
+    // ====== 去重複並按價格排序，確保名稱正確對應 ======
+    // 按價格排序後重新分配名稱（針對同類主機網站）
+    const sortedByPrice = [...foundPrices].sort((a, b) => a.numericPrice - b.numericPrice);
+    
+    // 如果有3個價格且看起來是主機方案（3600, 5400, 26500 這種階梯），重新命名
+    if (sortedByPrice.length >= 3) {
+      const prices = sortedByPrice.map(p => p.numericPrice);
+      // 檢查是否為階梯式價格（每個比前一個大）
+      const isStaircase = prices.every((p, i) => i === 0 || p > prices[i-1]);
+      
+      if (isStaircase && prices[0] >= 1000 && prices[0] <= 10000) {
+        // 看起來是主機方案，按照經濟<商務<旗艦命名
+        const planNames = ["經濟型主機", "商務型主機", "旗艦型主機"];
+        sortedByPrice.slice(0, 3).forEach((p, i) => {
+          if (planNames[i]) {
+            p.name = planNames[i];
+          }
+        });
+      }
     }
 
     // 將找到的價格加入 plans
-    for (const fp of foundPrices) {
+    for (const fp of sortedByPrice) {
       plans.push({ name: fp.name, priceText: fp.priceText, source: "text", currency: fp.currency, numericPrice: fp.numericPrice });
       if (plans.length >= 20) break;
     }
