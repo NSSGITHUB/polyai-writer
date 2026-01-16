@@ -227,30 +227,78 @@ async function scrapePlansFromUrl(url: string): Promise<SourcePlan[]> {
       .replace(/\s+/g, " ")
       .trim();
 
-    // 支援更多貨幣格式
-    const priceRegex = /(.{0,40}?)(NT\$|NTD|HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
+    // 改進的價格正則：支援 NT$ 1,234 或 $1234 或 ¥1,234 或 1,234元 格式
+    // 優先抓取年費/總價（較大金額），避免月費
+    const pricePatterns = [
+      // NT$ 格式
+      /(.{0,50}?)(NT\$|NTD)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi,
+      // 數字+元 格式（台灣常見）
+      /(.{0,50}?)([0-9][0-9,]+)\s*元(?:\/年|年)?/gi,
+      // $ 格式（但排除月費）
+      /(.{0,50}?)(\$)\s*([0-9][0-9,]*(?:\.[0-9]+)?)(?!\/月|\/mo)/gi,
+    ];
+
+    const foundPrices: Array<{name: string; priceText: string; numericPrice: number; currency: string}> = [];
+
+    // 先用 NT$ 格式
+    const ntdRegex = /(.{0,50}?)(NT\$|NTD)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi;
     let pMatch: RegExpExecArray | null;
-    while ((pMatch = priceRegex.exec(text)) !== null) {
+    while ((pMatch = ntdRegex.exec(text)) !== null) {
+      const before = (pMatch[1] || "").trim();
+      const num = pMatch[3] || "";
+      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
+      
+      // 跳過月費（通常較小金額且包含/月）
+      if (before.includes('/月') || before.includes('月費') || before.includes('每月')) continue;
+      
+      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
+      if (name.length > 40) name = name.slice(-40).trim();
+      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+
+      foundPrices.push({ name, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
+    }
+
+    // 再用「數字+元」格式
+    const yuanRegex = /(.{0,50}?)([0-9][0-9,]+)\s*元(?:\/年|年)?/gi;
+    while ((pMatch = yuanRegex.exec(text)) !== null) {
+      const before = (pMatch[1] || "").trim();
+      const num = pMatch[2] || "";
+      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
+      
+      // 跳過月費
+      if (before.includes('/月') || before.includes('月費') || before.includes('每月')) continue;
+      // 跳過太小的金額（可能是月費）
+      if (numericPrice < 500) continue;
+      
+      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
+      if (name.length > 40) name = name.slice(-40).trim();
+      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+
+      foundPrices.push({ name, priceText: `NT$${num}`, numericPrice, currency: "TWD" });
+    }
+
+    // 最後嘗試其他貨幣格式
+    const otherRegex = /(.{0,40}?)(HK\$|\$|¥|€)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/g;
+    while ((pMatch = otherRegex.exec(text)) !== null) {
       const before = (pMatch[1] || "").trim();
       const symbol = pMatch[2] || "";
       const num = pMatch[3] || "";
-
-      // Heuristic: pick a short-ish name near the price
-      let name = before
-        .replace(/[|｜:：•·]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
+      
+      // 跳過月費
+      if (before.includes('/月') || before.includes('月費') || before.includes('/mo')) continue;
+      
+      let name = before.replace(/[|｜:：•·]/g, " ").replace(/\s+/g, " ").trim();
       if (name.length > 30) name = name.slice(-30).trim();
-
-      const priceText = `${symbol}${num}`.trim();
-      if (!name) continue;
-      if (!/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
+      if (!name || !/[\u4E00-\u9FFFA-Za-z]/.test(name)) continue;
 
       const currency = detectCurrency(symbol, before);
-      const numericPrice = parseFloat(num.replace(/[,，]/g, '')) || 0;
+      foundPrices.push({ name, priceText: `${symbol}${num}`, numericPrice, currency });
+    }
 
-      plans.push({ name, priceText, source: "text", currency, numericPrice });
-
+    // 將找到的價格加入 plans
+    for (const fp of foundPrices) {
+      plans.push({ name: fp.name, priceText: fp.priceText, source: "text", currency: fp.currency, numericPrice: fp.numericPrice });
       if (plans.length >= 20) break;
     }
 
@@ -673,8 +721,16 @@ serve(async (req) => {
     const currentYear = new Date().getFullYear();
     const todayDate = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 系統提示詞
+    // 系統提示詞 - 加入文字樣式指引
     const systemPrompt = `你是一位頂尖的 SEO 內容專家與專業作家。請輸出純 HTML 格式的長篇深度文章（使用 <h2>、<h3>、<p>、<table>、<ul>、<blockquote> 等標籤）。文章必須專業、詳盡、有深度。
+
+【文字樣式要求 - 增加可讀性】
+- 重要關鍵詞、專有名詞使用 <strong style="color:#2563eb;">關鍵詞</strong> 標記（藍色粗體）
+- 數據、價格、百分比使用 <span style="color:#dc2626;font-weight:600;">數據</span> 標記（紅色粗體）
+- 提示、建議使用 <span style="color:#059669;">提示內容</span> 標記（綠色）
+- 每段落的開頭關鍵概念用 <strong>粗體</strong> 強調
+- 列表項目的標題使用 <strong>標題：</strong> 格式
+- 重要提醒可用 <mark style="background:#fef3c7;padding:2px 4px;">重點標記</mark>
 
 【絕對禁止】
 - 不要輸出任何 Markdown 格式（# * - ** [] 等）
@@ -732,9 +788,9 @@ ${keywords ? `相關關鍵字：${keywords}` : ''}
 ${targetAudience ? `目標受眾：${targetAudience}` : ''}
 `;
       } else if (section.type === "comparison") {
-        // 準備價格資訊
+        // 準備價格資訊 - 強調使用實際價格
         const priceInfo = sourcePlans.length > 0 
-          ? sourcePlans.map((p, i) => `${i + 1}. ${p.name}｜${p.priceText}`).join('\n')
+          ? sourcePlans.map((p, i) => `${i + 1}. ${p.name}：${p.priceText}（這是實際價格，請直接使用）`).join('\n')
           : '請根據主題研究並填入真實的市場價格';
 
         const currencyNote = primaryCurrency === "TWD" ? "以新台幣（NT$）顯示價格" :
@@ -751,7 +807,7 @@ ${targetAudience ? `目標受眾：${targetAudience}` : ''}
 
 <table style="width:100%;border-collapse:collapse;border:2px solid #dee2e6;margin:1.5rem 0;font-size:0.95rem;">
   <thead>
-    <tr style="background-color:#f8f9fa;">
+    <tr style="background-color:#1e40af;color:white;">
       ${scrapedImages.length > 0 ? '<th style="width:130px;padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">產品圖片</th>' : ''}
       <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">方案/產品</th>
       <th style="padding:12px;border:1px solid #dee2e6;text-align:left;font-weight:600;">核心特色</th>
@@ -762,20 +818,26 @@ ${targetAudience ? `目標受眾：${targetAudience}` : ''}
     </tr>
   </thead>
   <tbody>
-    <!-- 產生 4-6 列比較資料 -->
+    <!-- 產生 4-6 列比較資料，奇偶行交替背景色 -->
+    <tr style="background-color:#ffffff;">...</tr>
+    <tr style="background-color:#f8fafc;">...</tr>
   </tbody>
 </table>
 
 <p>總結差異與建議選擇方向。</p>
 
-【重要規則】
+【重要規則 - 價格必須正確！】
+- 價格欄使用 <span style="color:#dc2626;font-weight:700;">NT$價格</span> 格式顯示（紅色粗體）
+- ⚠️ 價格必須使用下方「價格資料來源」的實際金額，不要自行計算或轉換！
+- 如果來源是年費 NT$3,600，就顯示 NT$3,600/年，不要換算成月費！
 - 每個 <td> 必須包含 style="padding:10px;border:1px solid #dee2e6;vertical-align:middle;"
+- 奇數行背景色：#ffffff，偶數行背景色：#f8fafc
 - 字數：至少 ${section.minWords} 字
 - 關鍵字「${topic}」至少出現 ${section.minKeywordCount} 次
 - ${currencyNote}
 - 每格都要填入具體內容，禁止使用「...」、TBD
 
-【價格資料來源】優先使用以下資料：
+【價格資料來源 - 必須使用這些實際價格！】
 ${priceInfo}
 
 ${scrapedImages.length > 0 ? `【圖片欄格式】
