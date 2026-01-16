@@ -99,17 +99,27 @@ const CURRENCY_PRIORITY: Record<string, number> = {
 };
 
 function detectCurrency(symbol: string, text?: string): string {
+  // 檢查上下文是否有台灣相關字詞
+  const hasTaiwanContext = text && /(台灣|臺灣|tw|taiwan|新台幣|台幣)/i.test(text);
+  
   if (symbol === "NT$" || symbol === "NTD") return "TWD";
-  if (symbol === "¥") {
-    // 嘗試從上下文判斷是日幣還是人民幣
-    if (text && /(日本|日幣|円|yen)/i.test(text)) return "JPY";
-    if (text && /(人民幣|中國|rmb|cny)/i.test(text)) return "CNY";
-    return "JPY"; // 預設為日幣
+  if (symbol === "$") {
+    // 優先判斷是否為台幣
+    if (hasTaiwanContext) return "TWD";
+    return "USD";
   }
-  if (symbol === "$") return "USD";
+  if (symbol === "¥") {
+    // 優先檢查是否為台幣（有些網站用 ¥ 但實際是台幣）
+    if (hasTaiwanContext) return "TWD";
+    // 嘗試從上下文判斷是日幣還是人民幣
+    if (text && /(日本|日幣|円|yen|jp)/i.test(text)) return "JPY";
+    if (text && /(人民幣|中國|rmb|cny|cn)/i.test(text)) return "CNY";
+    // 預設為台幣（因為系統以台幣優先）
+    return "TWD";
+  }
   if (symbol === "HK$") return "HKD";
   if (symbol === "€") return "EUR";
-  return "OTHER";
+  return "TWD"; // 預設為台幣
 }
 
 function formatPriceText(price: unknown, currency: unknown): { text: string; currency: string; numericPrice: number } | null {
@@ -117,17 +127,18 @@ function formatPriceText(price: unknown, currency: unknown): { text: string; cur
   if (!p) return null;
 
   const c = typeof currency === "string" ? currency.trim().toUpperCase() : "";
+  // 預設為台幣
+  const currencyCode = c || "TWD";
   const prefix =
-    c === "TWD" || c === "NTD" ? "NT$" :
-    c === "USD" ? "$" :
-    c === "HKD" ? "HK$" :
-    c === "JPY" ? "¥" :
-    c === "CNY" ? "¥" :
-    c === "EUR" ? "€" :
-    c ? `${c} ` : "";
+    currencyCode === "TWD" || currencyCode === "NTD" ? "NT$" :
+    currencyCode === "USD" ? "$" :
+    currencyCode === "HKD" ? "HK$" :
+    currencyCode === "JPY" ? "¥" :
+    currencyCode === "CNY" ? "¥" :
+    currencyCode === "EUR" ? "€" :
+    "NT$"; // 預設使用台幣符號
 
   const numericPrice = parseFloat(p.replace(/[,，]/g, '')) || 0;
-  const currencyCode = c || "OTHER";
 
   // Preserve existing prefix if the price string already has it
   if (/^(NT\$|HK\$|\$|¥|€)/.test(p)) return { text: p, currency: currencyCode, numericPrice };
@@ -619,12 +630,17 @@ serve(async (req) => {
         youtubeError = "YouTube API key 尚未設定（YOUTUBE_API_KEY / GOOGLE_API_KEY）";
         console.warn("YouTube API key not configured (YOUTUBE_API_KEY / GOOGLE_API_KEY). Skipping YouTube embeds.");
       } else {
-        const parsedChannelId = extractChannelId(youtubeChannelId);
+      const parsedChannelId = extractChannelId(youtubeChannelId);
         if (youtubeChannelId && !parsedChannelId) {
           youtubeError = "無法解析 YouTube 頻道 ID。請使用頻道 ID（UC 開頭）或頻道網址（youtube.com/channel/UCxxxxxx）。@username 格式暫不支援。";
           console.warn("Invalid YouTube channel ID format:", youtubeChannelId);
         } else {
-          const query = `${topic} ${keywords}`.trim();
+          // 只使用第一組關鍵字搜尋 YouTube 影片
+          const keywordList = keywords ? keywords.split(/[,，、\n]+/).map(k => k.trim()).filter(Boolean) : [];
+          const firstKeyword = keywordList.length > 0 ? keywordList[0] : "";
+          const query = firstKeyword ? `${topic} ${firstKeyword}`.trim() : topic;
+          console.log("YouTube search query (first keyword only):", query);
+          
           const yt = await searchYoutubeVideos({
             apiKey: YOUTUBE_API_KEY,
             query,
