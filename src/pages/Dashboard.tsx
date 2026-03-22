@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { 
-  FileText, 
-  Image as ImageIcon, 
+import {
+  FileText,
+  Image as ImageIcon,
   PlusCircle,
   TrendingUp,
   Users,
@@ -11,7 +11,8 @@ import {
   LogOut,
   Key,
   Globe,
-  Clock
+  Clock,
+  Building2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -248,13 +249,22 @@ const Dashboard = () => {
             <p className="text-muted-foreground">管理 WordPress 網站，一鍵發佈文章</p>
           </Card>
 
-          <Card 
+          <Card
             className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
             onClick={() => navigate("/scheduled-posts")}
           >
             <Clock className="w-12 h-12 text-primary-glow mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">排程管理</h3>
             <p className="text-muted-foreground">查看排程進度與發送紀錄</p>
+          </Card>
+
+          <Card
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/ai-company")}
+          >
+            <Building2 className="w-12 h-12 text-accent mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">AI 公司</h3>
+            <p className="text-muted-foreground">AI 高管團隊，開會辯論、產出決策建議</p>
           </Card>
         </div>
 

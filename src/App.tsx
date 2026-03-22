@@ -16,6 +16,10 @@ import KeyManagement from "./pages/KeyManagement";
 import WordPressSites from "./pages/WordPressSites";
 import ScheduledPosts from "./pages/ScheduledPosts";
 import NotFound from "./pages/NotFound";
+import AICompany from "./pages/AICompany";
+import AIAgents from "./pages/AIAgents";
+import AIMeeting from "./pages/AIMeeting";
+import AIDecisions from "./pages/AIDecisions";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +42,10 @@ const App = () => (
           <Route path="/key-management" element={<KeyManagement />} />
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
+          <Route path="/ai-company" element={<AICompany />} />
+          <Route path="/ai-company/agents" element={<AIAgents />} />
+          <Route path="/ai-company/meeting" element={<AIMeeting />} />
+          <Route path="/ai-company/decisions" element={<AIDecisions />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
