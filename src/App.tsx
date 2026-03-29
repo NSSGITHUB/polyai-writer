@@ -15,6 +15,7 @@ import ImageGallery from "./pages/ImageGallery";
 import KeyManagement from "./pages/KeyManagement";
 import WordPressSites from "./pages/WordPressSites";
 import ScheduledPosts from "./pages/ScheduledPosts";
+import AccountingAutomation from "./pages/AccountingAutomation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/key-management" element={<KeyManagement />} />
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
+          <Route path="/accounting-automation" element={<AccountingAutomation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
