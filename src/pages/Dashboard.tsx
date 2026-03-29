@@ -11,7 +11,8 @@ import {
   LogOut,
   Key,
   Globe,
-  Clock
+  Clock,
+  Calculator
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -255,6 +256,15 @@ const Dashboard = () => {
             <Clock className="w-12 h-12 text-primary-glow mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">排程管理</h3>
             <p className="text-muted-foreground">查看排程進度與發送紀錄</p>
+          </Card>
+
+          <Card
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/accounting")}
+          >
+            <Calculator className="w-12 h-12 text-success mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">會計自動化系統</h3>
+            <p className="text-muted-foreground">應收/應付帳款、費用報銷、銀行對帳、財務報表</p>
           </Card>
         </div>
 

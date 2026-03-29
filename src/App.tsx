@@ -15,6 +15,13 @@ import ImageGallery from "./pages/ImageGallery";
 import KeyManagement from "./pages/KeyManagement";
 import WordPressSites from "./pages/WordPressSites";
 import ScheduledPosts from "./pages/ScheduledPosts";
+import AccountingAutomation from "./pages/AccountingAutomation";
+import AccountingDashboard from "./pages/AccountingDashboard";
+import AccountingReceivables from "./pages/AccountingReceivables";
+import AccountingPayables from "./pages/AccountingPayables";
+import AccountingExpenses from "./pages/AccountingExpenses";
+import AccountingReconciliation from "./pages/AccountingReconciliation";
+import AccountingReports from "./pages/AccountingReports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +45,13 @@ const App = () => (
           <Route path="/key-management" element={<KeyManagement />} />
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
+          <Route path="/accounting-automation" element={<AccountingAutomation />} />
+          <Route path="/accounting" element={<AccountingDashboard />} />
+          <Route path="/accounting/receivables" element={<AccountingReceivables />} />
+          <Route path="/accounting/payables" element={<AccountingPayables />} />
+          <Route path="/accounting/expenses" element={<AccountingExpenses />} />
+          <Route path="/accounting/reconciliation" element={<AccountingReconciliation />} />
+          <Route path="/accounting/reports" element={<AccountingReports />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
