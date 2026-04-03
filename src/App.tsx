@@ -15,6 +15,13 @@ import ImageGallery from "./pages/ImageGallery";
 import KeyManagement from "./pages/KeyManagement";
 import WordPressSites from "./pages/WordPressSites";
 import ScheduledPosts from "./pages/ScheduledPosts";
+import AmoebaDashboard from "./pages/AmoebaDashboard";
+import AmoebaSetup from "./pages/AmoebaSetup";
+import AmoebaUnits from "./pages/AmoebaUnits";
+import AmoebaAccounting from "./pages/AmoebaAccounting";
+import AmoebaTransfers from "./pages/AmoebaTransfers";
+import AmoebaReports from "./pages/AmoebaReports";
+import AmoebaSettings from "./pages/AmoebaSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +45,13 @@ const App = () => (
           <Route path="/key-management" element={<KeyManagement />} />
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
+          <Route path="/amoeba" element={<AmoebaDashboard />} />
+          <Route path="/amoeba/setup" element={<AmoebaSetup />} />
+          <Route path="/amoeba/units" element={<AmoebaUnits />} />
+          <Route path="/amoeba/accounting" element={<AmoebaAccounting />} />
+          <Route path="/amoeba/transfers" element={<AmoebaTransfers />} />
+          <Route path="/amoeba/reports" element={<AmoebaReports />} />
+          <Route path="/amoeba/settings" element={<AmoebaSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
