@@ -22,7 +22,9 @@ import {
   TrendingUp,
   Download,
   Clock,
+  FileText,
 } from "lucide-react";
+import jsPDF from "jspdf";
 
 const AmoebaReports = () => {
   const store = useAmoebaStore();
@@ -118,6 +120,111 @@ const AmoebaReports = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportPDF = () => {
+    if (filteredReports.length === 0) return;
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const orgName = store.organization?.name || "Amoeba";
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text(`${orgName} - Amoeba Report`, pageWidth / 2, 15, { align: "center" });
+    doc.setFontSize(12);
+    doc.text(`Period: ${selectedPeriod}`, pageWidth / 2, 23, { align: "center" });
+
+    // Table header
+    const startY = 32;
+    const colWidths = [40, 20, 32, 32, 32, 30, 30, 32, 25, 30];
+    const colHeaders = [
+      "Unit", "Code", "Revenue", "Ext.Rev", "Int.Rev",
+      "Labor", "Non-Labor", "Value-Add", "Hours", "Eff($/hr)",
+    ];
+    const startX = 10;
+
+    doc.setFontSize(8);
+    doc.setFillColor(100, 60, 180);
+    doc.rect(startX, startY - 5, colWidths.reduce((a, b) => a + b, 0), 7, "F");
+    doc.setTextColor(255, 255, 255);
+
+    let x = startX + 2;
+    colHeaders.forEach((h, i) => {
+      doc.text(h, x, startY);
+      x += colWidths[i];
+    });
+
+    // Rows
+    doc.setTextColor(40, 40, 40);
+    filteredReports.forEach((r, rowIdx) => {
+      const y = startY + 8 + rowIdx * 7;
+      if (rowIdx % 2 === 0) {
+        doc.setFillColor(245, 245, 255);
+        doc.rect(startX, y - 4.5, colWidths.reduce((a, b) => a + b, 0), 7, "F");
+      }
+
+      const rowData = [
+        r.unit_name,
+        r.unit_code,
+        `$${r.total_revenue.toLocaleString()}`,
+        `$${r.external_revenue.toLocaleString()}`,
+        `$${r.internal_revenue.toLocaleString()}`,
+        `$${r.labor_cost.toLocaleString()}`,
+        `$${r.non_labor_cost.toLocaleString()}`,
+        `$${r.gross_profit.toLocaleString()}`,
+        `${r.total_labor_hours}`,
+        `$${Math.round(r.hourly_efficiency).toLocaleString()}`,
+      ];
+
+      let rx = startX + 2;
+      rowData.forEach((val, i) => {
+        doc.text(val, rx, y);
+        rx += colWidths[i];
+      });
+    });
+
+    // Totals row
+    const totY = startY + 8 + filteredReports.length * 7 + 2;
+    doc.setFillColor(100, 60, 180);
+    doc.rect(startX, totY - 4.5, colWidths.reduce((a, b) => a + b, 0), 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+
+    const totRev = filteredReports.reduce((s, r) => s + r.total_revenue, 0);
+    const totExp = filteredReports.reduce((s, r) => s + r.total_expense, 0);
+    const totProfit = filteredReports.reduce((s, r) => s + r.gross_profit, 0);
+    const totHours = filteredReports.reduce((s, r) => s + r.total_labor_hours, 0);
+    const avgEff = totHours > 0 ? totProfit / totHours : 0;
+
+    const totData = [
+      "TOTAL", "", `$${totRev.toLocaleString()}`, "", "",
+      "", "", `$${totProfit.toLocaleString()}`,
+      `${totHours}`, `$${Math.round(avgEff).toLocaleString()}`,
+    ];
+    let tx = startX + 2;
+    totData.forEach((val, i) => {
+      doc.text(val, tx, totY);
+      tx += colWidths[i];
+    });
+
+    // Footer
+    doc.setTextColor(130, 130, 130);
+    doc.setFontSize(7);
+    doc.text(
+      `Value-Added = Revenue - Non-Labor Cost  |  Hourly Efficiency = Value-Added / Total Hours`,
+      pageWidth / 2,
+      totY + 12,
+      { align: "center" }
+    );
+    doc.text(
+      `Generated: ${new Date().toLocaleString("zh-TW")}`,
+      pageWidth / 2,
+      totY + 17,
+      { align: "center" }
+    );
+
+    doc.save(`Amoeba_Report_${selectedPeriod}.pdf`);
+  };
+
   return (
     <AmoebaLayout title="經營報表" subtitle="分析各阿米巴的經營績效與單位時間附加價值">
       {/* Filters */}
@@ -154,6 +261,10 @@ const AmoebaReports = () => {
         <Button variant="outline" className="border-primary/30" onClick={exportCSV}>
           <Download className="w-4 h-4 mr-2" />
           匯出 CSV
+        </Button>
+        <Button variant="outline" className="border-primary/30" onClick={exportPDF}>
+          <FileText className="w-4 h-4 mr-2" />
+          匯出 PDF
         </Button>
       </div>
 

@@ -7,6 +7,8 @@ import type {
   AmoebaExpenseItem,
   AmoebaInternalTransaction,
   AmoebaMonthlyReport,
+  AmoebaGoal,
+  AmoebaBudget,
 } from '@/types/amoeba';
 
 const STORAGE_KEY = 'amoeba_data';
@@ -18,6 +20,8 @@ interface AmoebaStore {
   revenues: AmoebaRevenueItem[];
   expenses: AmoebaExpenseItem[];
   transactions: AmoebaInternalTransaction[];
+  goals: AmoebaGoal[];
+  budgets: AmoebaBudget[];
 }
 
 const defaultStore: AmoebaStore = {
@@ -27,6 +31,8 @@ const defaultStore: AmoebaStore = {
   revenues: [],
   expenses: [],
   transactions: [],
+  goals: [],
+  budgets: [],
 };
 
 function generateId(): string {
@@ -224,6 +230,42 @@ export function useAmoebaStore() {
       .filter((r): r is AmoebaMonthlyReport => r !== null);
   }, [store, getMonthlyReport]);
 
+  // Goals
+  const addGoal = useCallback((goal: Omit<AmoebaGoal, 'id' | 'created_at'>) => {
+    const newGoal: AmoebaGoal = { ...goal, id: generateId(), created_at: new Date().toISOString() };
+    setStore(prev => ({ ...prev, goals: [...prev.goals, newGoal] }));
+    return newGoal;
+  }, []);
+
+  const updateGoal = useCallback((id: string, updates: Partial<AmoebaGoal>) => {
+    setStore(prev => ({
+      ...prev,
+      goals: prev.goals.map(g => g.id === id ? { ...g, ...updates } : g),
+    }));
+  }, []);
+
+  const deleteGoal = useCallback((id: string) => {
+    setStore(prev => ({ ...prev, goals: prev.goals.filter(g => g.id !== id) }));
+  }, []);
+
+  // Budgets
+  const addBudget = useCallback((budget: Omit<AmoebaBudget, 'id' | 'created_at'>) => {
+    const newBudget: AmoebaBudget = { ...budget, id: generateId(), created_at: new Date().toISOString() };
+    setStore(prev => ({ ...prev, budgets: [...prev.budgets, newBudget] }));
+    return newBudget;
+  }, []);
+
+  const updateBudget = useCallback((id: string, updates: Partial<AmoebaBudget>) => {
+    setStore(prev => ({
+      ...prev,
+      budgets: prev.budgets.map(b => b.id === id ? { ...b, ...updates } : b),
+    }));
+  }, []);
+
+  const deleteBudget = useCallback((id: string) => {
+    setStore(prev => ({ ...prev, budgets: prev.budgets.filter(b => b.id !== id) }));
+  }, []);
+
   // Reset all data
   const resetStore = useCallback(() => {
     setStore(defaultStore);
@@ -249,6 +291,12 @@ export function useAmoebaStore() {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    addGoal,
+    updateGoal,
+    deleteGoal,
+    addBudget,
+    updateBudget,
+    deleteBudget,
     getMonthlyReport,
     getAllReports,
     resetStore,

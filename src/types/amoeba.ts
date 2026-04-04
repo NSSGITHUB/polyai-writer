@@ -121,6 +121,31 @@ export const REVENUE_CATEGORIES = [
   '其他收入',
 ] as const;
 
+// 目標設定
+export interface AmoebaGoal {
+  id: string;
+  unit_id: string;
+  period: string; // YYYY-MM
+  target_revenue: number;
+  target_expense: number;
+  target_profit: number;
+  target_hourly_efficiency: number;
+  note: string;
+  created_at: string;
+}
+
+// 預算管理
+export interface AmoebaBudget {
+  id: string;
+  unit_id: string;
+  period: string; // YYYY-MM
+  category: string;
+  budget_type: 'revenue' | 'expense';
+  planned_amount: number;
+  note: string;
+  created_at: string;
+}
+
 // Setup Wizard 步驟
 export interface AmoebaSetupState {
   step: number;

@@ -9,6 +9,9 @@ import {
   Settings,
   ArrowLeft,
   Sparkles,
+  Target,
+  Wallet,
+  GitCompareArrows,
 } from "lucide-react";
 
 interface AmoebaLayoutProps {
@@ -22,7 +25,10 @@ const navItems = [
   { path: "/amoeba/units", label: "組織管理", icon: Building2 },
   { path: "/amoeba/accounting", label: "經營會計", icon: Calculator },
   { path: "/amoeba/transfers", label: "內部交易", icon: ArrowLeftRight },
+  { path: "/amoeba/goals", label: "目標設定", icon: Target },
+  { path: "/amoeba/budgets", label: "預算管理", icon: Wallet },
   { path: "/amoeba/reports", label: "經營報表", icon: BarChart3 },
+  { path: "/amoeba/comparison", label: "多期比較", icon: GitCompareArrows },
   { path: "/amoeba/settings", label: "系統設定", icon: Settings },
 ];
 

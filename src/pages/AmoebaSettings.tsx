@@ -152,6 +152,14 @@ const AmoebaSettings = () => {
               <span className="text-muted-foreground">內部交易</span>
               <span className="font-medium">{store.transactions.length} 筆</span>
             </div>
+            <div className="flex justify-between py-2 border-b border-primary/10">
+              <span className="text-muted-foreground">目標設定</span>
+              <span className="font-medium">{store.goals.length} 筆</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-primary/10">
+              <span className="text-muted-foreground">預算項目</span>
+              <span className="font-medium">{store.budgets.length} 筆</span>
+            </div>
           </div>
         </Card>
 
