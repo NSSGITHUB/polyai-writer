@@ -1487,3 +1487,297 @@ export const yearPlan: WeekPlan[] = [
     { title: '慶祝創業一週年！', description: '恭喜你！你已經走過了創業最艱難的第一年！繼續前進！', categoryId: 'mindset', itemIds: ['mindset-1'], milestone: '創業第一年完成！' },
   ]),
 ];
+
+// =============================================
+// 戰國策服務 (NSS Services) - 創業必備數位服務
+// =============================================
+
+export interface NssServiceItem {
+  id: string;
+  title: string;
+  description: string;
+  features: string[];
+  recommended: string;
+  tips: string;
+}
+
+export interface NssServiceCategory {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  color: string;
+  phaseTag: string;
+  services: NssServiceItem[];
+}
+
+export const nssServices: NssServiceCategory[] = [
+  {
+    id: 'nss-domain',
+    title: '網域名稱註冊',
+    icon: 'Globe',
+    description: '為你的品牌註冊專屬網域名稱，建立線上品牌識別的第一步',
+    color: 'text-blue-400',
+    phaseTag: '品牌建立階段',
+    services: [
+      {
+        id: 'nss-domain-tw',
+        title: '.com.tw / .tw 台灣網域',
+        description: '台灣在地企業首選，增加客戶信任感和本地搜尋排名優勢。適合以台灣市場為主要目標的創業者。',
+        features: ['台灣本土網域，提升在地信任感', '有助於 Google 台灣搜尋排名', '支援中文域名', 'DNS 代管服務', 'WHOIS 隱私保護'],
+        recommended: '適合主要面向台灣市場的企業，建議同時註冊 .com.tw 和 .tw',
+        tips: '公司名稱確定後立即註冊，避免被搶註。建議同時註冊常見的拼寫變體。',
+      },
+      {
+        id: 'nss-domain-com',
+        title: '.com 國際網域',
+        description: '全球通用的頂級域名，適合有國際化發展計畫的品牌。',
+        features: ['全球最通用的域名後綴', '高品牌辨識度', '國際化發展基礎', '支援所有主流 DNS 設定'],
+        recommended: '適合有國際市場目標的品牌，建議與 .com.tw 一起註冊',
+        tips: '好的 .com 域名越來越稀少，一旦想到好名字就立即註冊。',
+      },
+      {
+        id: 'nss-domain-special',
+        title: '特殊域名（.shop / .store / .io 等）',
+        description: '新型態頂級域名，適合特定行業或想要獨特網域的品牌。',
+        features: ['多種新型態後綴可選', '.shop / .store 適合電商', '.io 適合科技公司', '.ai 適合 AI 相關企業'],
+        recommended: '適合想要獨特品牌定位或特定產業的企業',
+        tips: '.io 在科技圈很流行，.shop 適合電商，選擇能代表你行業特性的後綴。',
+      },
+    ],
+  },
+  {
+    id: 'nss-hosting',
+    title: '虛擬主機與網站代管',
+    icon: 'Server',
+    description: '穩定可靠的網站託管服務，讓你的網站 24/7 全天候運作',
+    color: 'text-green-400',
+    phaseTag: '數位建置階段',
+    services: [
+      {
+        id: 'nss-hosting-shared',
+        title: '共享虛擬主機',
+        description: '最經濟實惠的架站方案，適合新創公司官網和小型網站。提供穩定的 Linux/Windows 主機環境。',
+        features: ['月費經濟實惠', 'cPanel/Plesk 控制面板', '一鍵安裝 WordPress', '免費 SSL 憑證', '每日自動備份', '99.9% 運作時間保證'],
+        recommended: '創業初期的最佳選擇，適合月流量 10 萬以內的網站',
+        tips: '創業初期用共享主機即可，等流量成長到需要更多資源時再升級。',
+      },
+      {
+        id: 'nss-hosting-vps',
+        title: 'VPS 虛擬專屬主機',
+        description: '獨立的虛擬伺服器資源，適合需要更多效能和控制權的成長中企業。',
+        features: ['專屬 CPU 和記憶體資源', 'Root 完整管理權限', '可自訂系統環境', '獨立 IP 位址', '彈性升降級', 'SSD 高速儲存'],
+        recommended: '適合月流量超過 10 萬或有客製化需求的企業',
+        tips: '網站開始有穩定流量後就該考慮升級到 VPS，效能提升很明顯。',
+      },
+      {
+        id: 'nss-hosting-cloud',
+        title: '雲端主機服務',
+        description: '彈性伸縮的雲端運算服務，適合流量波動大或快速成長的業務。',
+        features: ['按用量計費', '自動伸縮擴展', '高可用性架構', '全球節點部署', '即時監控面板', 'API 管理介面'],
+        recommended: '適合 SaaS 產品、App 後端或流量波動大的業務',
+        tips: '如果你的業務有明顯的流量高低峰（如電商促銷），雲端主機的彈性伸縮很實用。',
+      },
+      {
+        id: 'nss-hosting-wordpress',
+        title: 'WordPress 專用主機',
+        description: '針對 WordPress 最佳化的主機環境，提供更快的載入速度和專業支援。',
+        features: ['WordPress 專屬最佳化環境', '自動更新和安全防護', 'CDN 加速', '每日備份', 'WordPress 專家技術支援', '預裝常用外掛'],
+        recommended: '如果你的官網使用 WordPress 架設，強烈建議使用專用主機',
+        tips: '搭配本平台的 WordPress 文章發布功能，可以實現內容自動化生產和發布。',
+      },
+    ],
+  },
+  {
+    id: 'nss-email',
+    title: '企業電子郵件',
+    icon: 'Mail',
+    description: '使用公司域名的專業電子郵件，提升品牌形象和客戶信任度',
+    color: 'text-yellow-400',
+    phaseTag: '品牌建立階段',
+    services: [
+      {
+        id: 'nss-email-basic',
+        title: '企業郵件基本方案',
+        description: '以公司域名為後綴的電子郵件服務（如 name@yourcompany.com），提升專業形象。',
+        features: ['自訂域名郵箱', '網頁版收發介面', '大容量信箱空間', '垃圾郵件過濾', '支援 POP3/IMAP/SMTP', '行動裝置同步'],
+        recommended: '每家公司都應該有！使用公司域名郵箱是專業的基本門檻',
+        tips: '立即停止用 Gmail/Yahoo 個人信箱代表公司，企業郵箱是建立信任的第一步。',
+      },
+      {
+        id: 'nss-email-advanced',
+        title: '企業郵件進階方案',
+        description: '包含行事曆、通訊錄和團隊協作功能的完整企業通訊解決方案。',
+        features: ['共享行事曆', '全域通訊錄', '郵件群組和別名', '大附件傳送', '郵件加密', '管理員控制面板', '稽核和合規功能'],
+        recommended: '適合 5 人以上團隊，需要郵件協作和管理功能',
+        tips: '團隊成長後建議升級到進階方案，共享行事曆和通訊錄能大幅提升協作效率。',
+      },
+    ],
+  },
+  {
+    id: 'nss-ssl',
+    title: 'SSL 憑證與資安服務',
+    icon: 'Shield',
+    description: '保護網站安全和客戶資料，建立使用者信任的安全基礎',
+    color: 'text-red-400',
+    phaseTag: '數位建置階段',
+    services: [
+      {
+        id: 'nss-ssl-standard',
+        title: '標準 SSL 憑證 (DV)',
+        description: '網域驗證型 SSL 憑證，提供基本的 HTTPS 加密，適合一般企業網站。',
+        features: ['HTTPS 加密連線', '瀏覽器綠色鎖頭標示', '快速簽發（分鐘內）', 'Google 搜尋排名加分', '256位元加密', '保障客戶資料安全'],
+        recommended: '每個網站都必須安裝 SSL 憑證，這是 2024 年的基本要求',
+        tips: 'Google 已將 HTTPS 列為搜尋排名因素，沒有 SSL 的網站會被標記為「不安全」。',
+      },
+      {
+        id: 'nss-ssl-ov',
+        title: '企業型 SSL 憑證 (OV)',
+        description: '組織驗證型 SSL 憑證，需驗證企業身份，適合需要展示企業可信度的商業網站。',
+        features: ['企業身份驗證', '顯示公司名稱', '更高的信任等級', '適合 B2B 企業網站', '電子商務安全保障'],
+        recommended: '適合 B2B 企業網站和需要展示公司可信度的業務',
+        tips: '如果你的網站涉及客戶資料收集或金融交易，建議使用 OV 或 EV 憑證。',
+      },
+      {
+        id: 'nss-ssl-wildcard',
+        title: '萬用字元 SSL 憑證',
+        description: '保護主域名及所有子域名，適合有多個子網站的企業。',
+        features: ['一張憑證保護所有子域名', '如 *.yourcompany.com', '適合多站點架構', '節省管理成本', '支援無限子域名'],
+        recommended: '適合有多個子網站（如 blog.、shop.、app.）的企業',
+        tips: '如果你計畫建立多個子網站，萬用字元憑證比個別購買更經濟。',
+      },
+      {
+        id: 'nss-security-waf',
+        title: '網站應用程式防火牆 (WAF)',
+        description: '進階網站安全防護，防禦 SQL 注入、XSS、DDoS 等常見網路攻擊。',
+        features: ['即時威脅偵測', '阻擋惡意流量', 'DDoS 防護', 'SQL 注入防護', 'XSS 攻擊防護', '安全報表和分析'],
+        recommended: '適合電商網站、會員系統或處理敏感資料的應用',
+        tips: '隨著業務成長，網站會成為攻擊目標。WAF 是保護你的客戶資料和業務的重要投資。',
+      },
+    ],
+  },
+  {
+    id: 'nss-design',
+    title: '網站設計與開發',
+    icon: 'PenTool',
+    description: '專業的網站設計和開發服務，打造符合品牌形象的企業官網',
+    color: 'text-purple-400',
+    phaseTag: '品牌建立階段',
+    services: [
+      {
+        id: 'nss-design-corporate',
+        title: '企業形象網站設計',
+        description: '量身打造專業的企業形象網站，展現品牌特色和企業實力。',
+        features: ['客製化視覺設計', '響應式行動裝置適配', 'SEO 基礎優化', '內容管理系統 (CMS)', '聯絡表單和地圖', '社群媒體整合', '多語言支援'],
+        recommended: '適合需要專業形象網站但沒有技術團隊的創業者',
+        tips: '一個好的企業官網是你的線上門面，值得投資專業設計。可以搭配 WordPress 方便後續自行更新內容。',
+      },
+      {
+        id: 'nss-design-ecommerce',
+        title: '電子商務網站開發',
+        description: '功能完整的電商網站，從商品展示到金流串接一站完成。',
+        features: ['商品管理系統', '購物車和結帳流程', '金流串接（信用卡/超商/轉帳）', '物流串接', '訂單管理後台', '會員系統', '優惠券和促銷功能', '銷售報表'],
+        recommended: '適合需要線上銷售實體或數位商品的創業者',
+        tips: '電商網站的關鍵是結帳流程要簡單順暢，每多一個步驟就會流失 20% 的客戶。',
+      },
+      {
+        id: 'nss-design-landing',
+        title: '行銷著陸頁設計',
+        description: '高轉換率的行銷著陸頁，專為廣告投放和活動推廣設計。',
+        features: ['高轉換率設計', '呼叫行動 (CTA) 優化', 'A/B 測試支援', '表單和名單收集', '追蹤碼整合', '快速載入優化'],
+        recommended: '適合投放數位廣告、舉辦活動或需要收集潛在客戶名單的企業',
+        tips: '好的著陸頁專注在一個目標、一個行動呼籲，不要把太多資訊塞在一頁。',
+      },
+      {
+        id: 'nss-design-app',
+        title: 'Web 應用程式開發',
+        description: '客製化的 Web 應用程式開發，包含前後端開發和 API 整合。',
+        features: ['前端 React/Vue 開發', '後端 API 開發', '資料庫設計', '第三方 API 整合', '使用者驗證和權限', '效能優化'],
+        recommended: '適合需要開發 SaaS 產品或客製化系統的企業',
+        tips: '如果你的核心業務是技術產品，建議自建技術團隊。但初期可以先外包 MVP 驗證市場。',
+      },
+    ],
+  },
+  {
+    id: 'nss-marketing',
+    title: '數位行銷服務',
+    icon: 'Megaphone',
+    description: '全方位數位行銷支援，幫助你的品牌被目標客群看見',
+    color: 'text-orange-400',
+    phaseTag: '客戶開發階段',
+    services: [
+      {
+        id: 'nss-marketing-seo',
+        title: 'SEO 搜尋引擎優化',
+        description: '專業的 SEO 優化服務，提升網站在 Google 搜尋結果的排名。',
+        features: ['關鍵字研究和策略', '站內 SEO 優化', '技術 SEO 改善', '內容策略規劃', '外部連結建設', '每月排名報告', '競爭對手分析'],
+        recommended: '適合想要長期獲得自然搜尋流量的企業，SEO 是成本效益最高的行銷方式',
+        tips: 'SEO 是長期投資，通常 3-6 個月才會看到成效，但效果是持續累積的。',
+      },
+      {
+        id: 'nss-marketing-ads',
+        title: '廣告代操服務（Google/Meta）',
+        description: '專業的數位廣告投放和優化服務，最大化你的廣告投資報酬率。',
+        features: ['Google Ads 關鍵字廣告', 'Meta (FB/IG) 廣告投放', '受眾分析和定位', '廣告素材設計', 'A/B 測試和優化', '每月成效報告', 'ROAS 追蹤和優化'],
+        recommended: '適合想要快速獲得曝光和客戶但不熟悉廣告投放的創業者',
+        tips: '初期可以小預算測試，找到 ROAS > 3 的廣告組合再放大投入。',
+      },
+      {
+        id: 'nss-marketing-social',
+        title: '社群媒體經營',
+        description: '社群媒體帳號經營和內容管理服務，建立品牌的社群影響力。',
+        features: ['社群內容策略規劃', '貼文設計和撰寫', '社群互動管理', '粉絲成長策略', '社群數據分析', '網紅/KOL 合作媒合'],
+        recommended: '適合沒有專職社群人員但需要經營社群的企業',
+        tips: '社群經營最重要的是持續和真實，選擇最適合你品牌調性的平台深耕。',
+      },
+      {
+        id: 'nss-marketing-content',
+        title: '內容行銷服務',
+        description: '專業的內容創作和行銷策略，搭配本平台的 AI 文章生成功能。',
+        features: ['內容策略規劃', '文章撰寫和編輯', 'SEO 文章優化', '部落格經營', '電子報規劃', '搭配 AI 文章生成平台'],
+        recommended: '搭配本平台使用，用 AI 生成初稿，由專業編輯潤色修改，事半功倍',
+        tips: '利用本平台的 AI 文章生成功能產出初稿，再搭配戰國策的內容編輯服務進行優化和發布。',
+      },
+    ],
+  },
+  {
+    id: 'nss-server',
+    title: '實體伺服器與機房服務',
+    icon: 'HardDrive',
+    description: '企業級的實體伺服器和機房託管服務，適合高效能和高安全性需求',
+    color: 'text-slate-400',
+    phaseTag: '成長擴展階段',
+    services: [
+      {
+        id: 'nss-server-dedicated',
+        title: '實體專屬伺服器',
+        description: '完全獨佔的實體伺服器，提供最高效能和完整控制權。',
+        features: ['專屬硬體資源', '最高效能表現', '完全 Root 權限', '客製化硬體配置', '24/7 硬體監控', '快速硬體更換'],
+        recommended: '適合大型電商、高流量網站或有特殊效能需求的企業',
+        tips: '除非你有明確的高效能需求，否則 VPS 或雲端主機在大多數情況下已經足夠。',
+      },
+      {
+        id: 'nss-server-colocation',
+        title: '主機代管/機房託管',
+        description: '將你自己的伺服器託管在專業機房，享受電信級的網路和電力環境。',
+        features: ['專業機房環境', '不斷電系統 (UPS)', '恆溫恆濕控管', '多線路網路', '24/7 實體安全', '遠端 KVM 管理'],
+        recommended: '適合有自有伺服器但需要專業機房環境的企業',
+        tips: '自建機房的成本遠高於託管，除非有特殊法規要求，否則建議使用託管服務。',
+      },
+    ],
+  },
+];
+
+// 戰國策服務與創業階段的對應關係
+export const nssPhaseMapping: Record<string, string[]> = {
+  'mindset': [],
+  'market': [],
+  'legal': ['nss-domain'],
+  'finance': [],
+  'branding': ['nss-domain', 'nss-email', 'nss-design', 'nss-marketing'],
+  'product': ['nss-hosting', 'nss-ssl', 'nss-design'],
+  'team': ['nss-email'],
+  'digital': ['nss-hosting', 'nss-email', 'nss-ssl', 'nss-design'],
+  'sales': ['nss-marketing'],
+  'growth': ['nss-server', 'nss-hosting', 'nss-marketing'],
+};

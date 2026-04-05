@@ -51,16 +51,30 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Globe,
+  Server,
+  Mail,
+  Shield,
+  PenTool,
+  Megaphone,
+  HardDrive,
+  ExternalLink,
+  BadgeCheck,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import {
   checklistCategories,
   yearPlan,
+  nssServices,
+  nssPhaseMapping,
   type ChecklistCategory,
   type ChecklistItem,
   type ChecklistResource,
   type WeekPlan,
   type DayTask,
+  type NssServiceCategory,
+  type NssServiceItem,
 } from "@/data/startupChecklist";
 
 // ── Icon mapping ──────────────────────────────────────────────────────────────
@@ -75,6 +89,13 @@ const iconMap: Record<string, LucideIcon> = {
   Monitor,
   Target,
   Rocket,
+  Globe,
+  Server,
+  Mail,
+  Shield,
+  PenTool,
+  Megaphone,
+  HardDrive,
 };
 
 const resourceTypeIcon: Record<string, LucideIcon> = {
@@ -439,6 +460,9 @@ const StartupChecklist = () => {
             </TabsTrigger>
             <TabsTrigger value="plan" className="flex-1 sm:flex-none">
               365天計畫
+            </TabsTrigger>
+            <TabsTrigger value="nss" className="flex-1 sm:flex-none">
+              戰國策服務
             </TabsTrigger>
           </TabsList>
 
@@ -930,6 +954,176 @@ const StartupChecklist = () => {
                   </Card>
                 );
               })}
+            </div>
+          </TabsContent>
+
+          {/* ───────────────── Tab 4: NSS Services ───────────────── */}
+          <TabsContent value="nss" className="space-y-6">
+            {/* NSS Header */}
+            <Card className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-purple-500/20">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-purple-500/20">
+                    <Zap className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+                      戰國策創業服務
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      戰國策集團提供一站式數位服務，涵蓋網域註冊、主機代管、網站設計、資安防護到數位行銷。
+                      以下服務已按照創業不同階段的需求分類，幫助你在正確的時間選擇正確的服務。
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant="secondary" className="text-xs">
+                        <Globe className="h-3 w-3 mr-1" />
+                        網域註冊
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Server className="h-3 w-3 mr-1" />
+                        主機代管
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Shield className="h-3 w-3 mr-1" />
+                        資安防護
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <PenTool className="h-3 w-3 mr-1" />
+                        網站設計
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Megaphone className="h-3 w-3 mr-1" />
+                        數位行銷
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Phase Recommendation */}
+            {(() => {
+              const currentPhaseServices = checklistCategories
+                .filter((cat) => {
+                  const stats = categoryStats[cat.id];
+                  return stats && stats.completed < stats.total;
+                })
+                .flatMap((cat) => nssPhaseMapping[cat.id] ?? [])
+                .filter((v, i, a) => a.indexOf(v) === i);
+              const recommendedServices = nssServices.filter((s) =>
+                currentPhaseServices.includes(s.id)
+              );
+              if (recommendedServices.length === 0) return null;
+              return (
+                <Card className="bg-yellow-500/5 border-yellow-500/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BadgeCheck className="h-5 w-5 text-yellow-400" />
+                      根據你目前的創業進度推薦
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {recommendedServices.map((svc) => (
+                        <Badge
+                          key={svc.id}
+                          className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-colors"
+                        >
+                          <CategoryIcon iconName={svc.icon} className="h-3 w-3 mr-1" />
+                          {svc.title}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Service Categories */}
+            <div className="space-y-6">
+              {nssServices.map((category) => (
+                <Card key={category.id} className="bg-card/50 border-border/40 overflow-hidden">
+                  {/* Category Header */}
+                  <div className="px-6 py-4 border-b border-border/40 bg-card/80">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-indigo-500/10`}>
+                          <CategoryIcon iconName={category.icon} className={`h-5 w-5 ${category.color}`} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg">{category.title}</h3>
+                          <p className="text-xs text-muted-foreground">{category.description}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-xs hidden sm:flex">
+                        {category.phaseTag}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Service Items */}
+                  <CardContent className="p-0">
+                    <Accordion type="multiple">
+                      {category.services.map((service) => (
+                        <AccordionItem
+                          key={service.id}
+                          value={service.id}
+                          className="border-b border-border/30 last:border-0"
+                        >
+                          <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/10">
+                            <div className="text-left">
+                              <span className="font-medium">{service.title}</span>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 pr-4">
+                                {service.description}
+                              </p>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-6 pb-5 space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                              {service.description}
+                            </p>
+
+                            {/* Features */}
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2">服務特色</h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {service.features.map((feature, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-sm">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+                                    <span className="text-muted-foreground">{feature}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Recommendation */}
+                            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3">
+                              <h4 className="text-sm font-semibold mb-1 flex items-center gap-1">
+                                <BadgeCheck className="h-4 w-4 text-indigo-400" />
+                                推薦對象
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {service.recommended}
+                              </p>
+                            </div>
+
+                            {/* Tips */}
+                            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                              <h4 className="text-sm font-semibold mb-1 flex items-center gap-1">
+                                <Lightbulb className="h-4 w-4 text-yellow-400" />
+                                創業小提示
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {service.tips}
+                              </p>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </TabsContent>
         </Tabs>
