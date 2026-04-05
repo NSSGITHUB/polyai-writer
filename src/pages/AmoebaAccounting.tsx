@@ -255,10 +255,12 @@ const AmoebaAccounting = () => {
           <Card className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-lg">營收明細</h3>
-              <Button className="bg-gradient-primary hover:shadow-glow" size="sm" onClick={openNewRevenue}>
-                <Plus className="w-4 h-4 mr-1" />
-                新增營收
-              </Button>
+              {store.canEdit && (
+                <Button className="bg-gradient-primary hover:shadow-glow" size="sm" onClick={openNewRevenue}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  新增營收
+                </Button>
+              )}
             </div>
 
             {filteredRevenues.length === 0 ? (
@@ -329,10 +331,12 @@ const AmoebaAccounting = () => {
           <Card className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-lg">費用明細</h3>
-              <Button className="bg-gradient-primary hover:shadow-glow" size="sm" onClick={openNewExpense}>
-                <Plus className="w-4 h-4 mr-1" />
-                新增費用
-              </Button>
+              {store.canEdit && (
+                <Button className="bg-gradient-primary hover:shadow-glow" size="sm" onClick={openNewExpense}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  新增費用
+                </Button>
+              )}
             </div>
 
             {filteredExpenses.length === 0 ? (

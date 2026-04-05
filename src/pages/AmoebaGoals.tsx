@@ -123,10 +123,10 @@ const AmoebaGoals = () => {
             </SelectContent>
           </Select>
         </div>
-        <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNew}>
+        {store.canEdit && <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNew}>
           <Plus className="w-4 h-4 mr-2" />
           設定目標
-        </Button>
+        </Button>}
       </div>
 
       {/* Info */}

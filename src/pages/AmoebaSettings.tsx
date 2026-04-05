@@ -118,10 +118,12 @@ const AmoebaSettings = () => {
               </div>
             </div>
 
-            <Button className="bg-gradient-primary hover:shadow-glow" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              儲存設定
-            </Button>
+            {store.canAdmin && (
+              <Button className="bg-gradient-primary hover:shadow-glow" onClick={handleSave}>
+                <Save className="w-4 h-4 mr-2" />
+                儲存設定
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -183,6 +185,7 @@ const AmoebaSettings = () => {
           <Button
             variant="destructive"
             onClick={() => setResetDialogOpen(true)}
+            disabled={!store.isOwner}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             重置所有資料

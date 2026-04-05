@@ -23,6 +23,8 @@ import {
   ChevronsUpDown,
   Trophy,
   Star,
+  Bell,
+  FolderOpen,
 } from "lucide-react";
 
 interface AmoebaLayoutProps {
@@ -33,6 +35,8 @@ interface AmoebaLayoutProps {
 
 const navItems = [
   { path: "/amoeba", label: "經營總覽", icon: LayoutDashboard },
+  { path: "/amoeba/orgs", label: "組織中心", icon: FolderOpen },
+  { path: "/amoeba/notifications", label: "通知警報", icon: Bell },
   { path: "/amoeba/units", label: "組織管理", icon: Building2 },
   { path: "/amoeba/accounting", label: "經營會計", icon: Calculator },
   { path: "/amoeba/transfers", label: "內部交易", icon: ArrowLeftRight },

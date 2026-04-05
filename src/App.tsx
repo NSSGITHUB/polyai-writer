@@ -29,6 +29,8 @@ import AmoebaTeam from "./pages/AmoebaTeam";
 import AmoebaActivity from "./pages/AmoebaActivity";
 import AmoebaBonusRules from "./pages/AmoebaBonusRules";
 import AmoebaBonusReport from "./pages/AmoebaBonusReport";
+import AmoebaOrgs from "./pages/AmoebaOrgs";
+import AmoebaNotifications from "./pages/AmoebaNotifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +55,8 @@ const App = () => (
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
           <Route path="/amoeba" element={<AmoebaDashboard />} />
+          <Route path="/amoeba/orgs" element={<AmoebaOrgs />} />
+          <Route path="/amoeba/notifications" element={<AmoebaNotifications />} />
           <Route path="/amoeba/setup" element={<AmoebaSetup />} />
           <Route path="/amoeba/units" element={<AmoebaUnits />} />
           <Route path="/amoeba/accounting" element={<AmoebaAccounting />} />

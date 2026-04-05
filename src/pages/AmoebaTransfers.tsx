@@ -145,10 +145,12 @@ const AmoebaTransfers = () => {
             </SelectContent>
           </Select>
         </div>
-        <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNew}>
-          <Plus className="w-4 h-4 mr-2" />
-          新增內部交易
-        </Button>
+        {store.canEdit && (
+          <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNew}>
+            <Plus className="w-4 h-4 mr-2" />
+            新增內部交易
+          </Button>
+        )}
       </div>
 
       {/* Info Box */}

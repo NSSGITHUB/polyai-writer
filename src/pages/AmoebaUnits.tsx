@@ -172,10 +172,12 @@ const AmoebaUnits = () => {
   return (
     <AmoebaLayout title="組織管理" subtitle="管理阿米巴單位與成員配置">
       <div className="flex justify-end mb-6">
-        <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNewUnit}>
-          <Plus className="w-4 h-4 mr-2" />
-          新增阿米巴單位
-        </Button>
+        {store.canAdmin && (
+          <Button className="bg-gradient-primary hover:shadow-glow" onClick={openNewUnit}>
+            <Plus className="w-4 h-4 mr-2" />
+            新增阿米巴單位
+          </Button>
+        )}
       </div>
 
       {store.units.length === 0 ? (
@@ -238,20 +240,24 @@ const AmoebaUnits = () => {
                   </div>
 
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" onClick={() => openNewMember(unit.id)}>
-                      <UserPlus className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openEditUnit(unit)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
+                    {store.canEdit && (
+                      <Button variant="ghost" size="sm" onClick={() => openNewMember(unit.id)}>
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {store.canAdmin && (
+                      <Button variant="ghost" size="sm" onClick={() => openEditUnit(unit)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {store.canAdmin && <Button
                       variant="ghost"
                       size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => handleDeleteUnit(unit)}
                     >
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
 
