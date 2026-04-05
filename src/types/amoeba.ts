@@ -1,8 +1,59 @@
-// 阿米巴經營管理系統 - 資料型別定義
+// 阿米巴經營管理系統 - 資料型別定義（多用戶版）
 
-// 阿米巴組織
+// ============================================================
+// 使用者與權限
+// ============================================================
+
+export type AmoebaRole = 'owner' | 'admin' | 'manager' | 'viewer';
+
+export const ROLE_LABELS: Record<AmoebaRole, string> = {
+  owner: '擁有者',
+  admin: '管理員',
+  manager: '經理',
+  viewer: '檢視者',
+};
+
+export const ROLE_DESCRIPTIONS: Record<AmoebaRole, string> = {
+  owner: '完全控制，可管理協作者與刪除組織',
+  admin: '可編輯所有資料，不可刪除組織',
+  manager: '可編輯經營數據（營收/費用/交易）',
+  viewer: '唯讀，僅能查看報表與數據',
+};
+
+// 協作者
+export interface AmoebaCollaborator {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  role: AmoebaRole;
+  invited_by: string;
+  status: 'pending' | 'active' | 'removed';
+  created_at: string;
+}
+
+// 活動日誌
+export interface AmoebaActivityLog {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  user_name: string;
+  action: string; // e.g. "新增營收", "編輯單位", "邀請成員"
+  target_type: string; // e.g. "revenue", "unit", "collaborator"
+  target_name: string; // e.g. "業務一部", "$50,000"
+  details?: string;
+  created_at: string;
+}
+
+// ============================================================
+// 核心組織模型
+// ============================================================
+
+// 阿米巴組織（多組織支援）
 export interface AmoebaOrganization {
   id: string;
+  owner_id: string; // 建立者
   name: string;
   description: string;
   fiscal_year_start: number; // 1-12, 會計年度起始月
@@ -15,10 +66,10 @@ export interface AmoebaUnit {
   id: string;
   organization_id: string;
   name: string;
-  code: string; // 編號，例如 "A001"
-  parent_id: string | null; // 上層阿米巴（用於階層結構）
+  code: string;
+  parent_id: string | null;
   leader_name: string;
-  type: 'profit_center' | 'cost_center'; // 利潤中心 / 成本中心
+  type: 'profit_center' | 'cost_center';
   description: string;
   member_count: number;
   is_active: boolean;
@@ -31,39 +82,40 @@ export interface AmoebaMember {
   unit_id: string;
   name: string;
   role: string;
-  hourly_rate: number; // 時薪（用於計算人工成本）
-  monthly_hours: number; // 月工時
+  hourly_rate: number;
+  monthly_hours: number;
   is_active: boolean;
 }
 
-// 營收項目
+// ============================================================
+// 經營數據
+// ============================================================
+
 export interface AmoebaRevenueItem {
   id: string;
   unit_id: string;
-  period: string; // YYYY-MM 格式
+  period: string;
   category: string;
   description: string;
   amount: number;
-  source: 'external' | 'internal'; // 外部營收 or 內部交易營收
-  related_transaction_id?: string;
-  created_at: string;
-}
-
-// 費用項目
-export interface AmoebaExpenseItem {
-  id: string;
-  unit_id: string;
-  period: string; // YYYY-MM 格式
-  category: string;
-  description: string;
-  amount: number;
-  is_labor_cost: boolean; // 是否為人事費用
   source: 'external' | 'internal';
   related_transaction_id?: string;
   created_at: string;
 }
 
-// 內部交易
+export interface AmoebaExpenseItem {
+  id: string;
+  unit_id: string;
+  period: string;
+  category: string;
+  description: string;
+  amount: number;
+  is_labor_cost: boolean;
+  source: 'external' | 'internal';
+  related_transaction_id?: string;
+  created_at: string;
+}
+
 export interface AmoebaInternalTransaction {
   id: string;
   from_unit_id: string;
@@ -75,7 +127,10 @@ export interface AmoebaInternalTransaction {
   created_at: string;
 }
 
-// 月度報表 - 單位時間附加價值
+// ============================================================
+// 報表
+// ============================================================
+
 export interface AmoebaMonthlyReport {
   unit_id: string;
   unit_name: string;
@@ -87,14 +142,44 @@ export interface AmoebaMonthlyReport {
   total_expense: number;
   labor_cost: number;
   non_labor_cost: number;
-  gross_profit: number; // 附加價值 = 營收 - 費用（不含人事）
+  gross_profit: number;
   total_labor_hours: number;
-  hourly_efficiency: number; // 單位時間附加價值 = 附加價值 / 總工時
+  hourly_efficiency: number;
   member_count: number;
-  profit_margin: number; // 利潤率
+  profit_margin: number;
 }
 
-// 費用類別預設
+// ============================================================
+// 目標與預算
+// ============================================================
+
+export interface AmoebaGoal {
+  id: string;
+  unit_id: string;
+  period: string;
+  target_revenue: number;
+  target_expense: number;
+  target_profit: number;
+  target_hourly_efficiency: number;
+  note: string;
+  created_at: string;
+}
+
+export interface AmoebaBudget {
+  id: string;
+  unit_id: string;
+  period: string;
+  category: string;
+  budget_type: 'revenue' | 'expense';
+  planned_amount: number;
+  note: string;
+  created_at: string;
+}
+
+// ============================================================
+// 常數
+// ============================================================
+
 export const EXPENSE_CATEGORIES = [
   '原材料費',
   '人事費用',
@@ -110,7 +195,6 @@ export const EXPENSE_CATEGORIES = [
   '其他費用',
 ] as const;
 
-// 營收類別預設
 export const REVENUE_CATEGORIES = [
   '產品銷售',
   '服務收入',
@@ -121,35 +205,19 @@ export const REVENUE_CATEGORIES = [
   '其他收入',
 ] as const;
 
-// 目標設定
-export interface AmoebaGoal {
-  id: string;
-  unit_id: string;
-  period: string; // YYYY-MM
-  target_revenue: number;
-  target_expense: number;
-  target_profit: number;
-  target_hourly_efficiency: number;
-  note: string;
-  created_at: string;
-}
-
-// 預算管理
-export interface AmoebaBudget {
-  id: string;
-  unit_id: string;
-  period: string; // YYYY-MM
-  category: string;
-  budget_type: 'revenue' | 'expense';
-  planned_amount: number;
-  note: string;
-  created_at: string;
-}
-
 // Setup Wizard 步驟
 export interface AmoebaSetupState {
   step: number;
   organization: Partial<AmoebaOrganization>;
   units: Partial<AmoebaUnit>[];
   members: Record<string, Partial<AmoebaMember>[]>;
+}
+
+// 當前使用者在阿米巴系統中的身份
+export interface AmoebaUserContext {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  currentOrgId: string | null;
+  role: AmoebaRole | null;
 }

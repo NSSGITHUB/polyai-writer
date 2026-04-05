@@ -25,6 +25,8 @@ import AmoebaSettings from "./pages/AmoebaSettings";
 import AmoebaGoals from "./pages/AmoebaGoals";
 import AmoebaBudgets from "./pages/AmoebaBudgets";
 import AmoebaComparison from "./pages/AmoebaComparison";
+import AmoebaTeam from "./pages/AmoebaTeam";
+import AmoebaActivity from "./pages/AmoebaActivity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,8 @@ const App = () => (
           <Route path="/amoeba/budgets" element={<AmoebaBudgets />} />
           <Route path="/amoeba/reports" element={<AmoebaReports />} />
           <Route path="/amoeba/comparison" element={<AmoebaComparison />} />
+          <Route path="/amoeba/team" element={<AmoebaTeam />} />
+          <Route path="/amoeba/activity" element={<AmoebaActivity />} />
           <Route path="/amoeba/settings" element={<AmoebaSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
