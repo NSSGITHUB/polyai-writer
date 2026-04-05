@@ -61,6 +61,12 @@ import {
   ExternalLink,
   BadgeCheck,
   Zap,
+  FileCheck2,
+  Building,
+  MapPin,
+  Calculator,
+  Bot,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -96,6 +102,12 @@ const iconMap: Record<string, LucideIcon> = {
   PenTool,
   Megaphone,
   HardDrive,
+  FileCheck: FileCheck2,
+  Building,
+  MapPin,
+  Calculator,
+  Bot,
+  LayoutDashboard,
 };
 
 const resourceTypeIcon: Record<string, LucideIcon> = {
@@ -971,21 +983,26 @@ const StartupChecklist = () => {
                       戰國策創業服務
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      戰國策集團提供一站式數位服務，涵蓋網域註冊、主機代管、網站設計、資安防護到數位行銷。
+                      戰國策集團提供一站式數位服務，涵蓋公司註冊、商務中心、地址出租、記帳服務、
+                      網域註冊、主機代管、網站設計、資安防護、數位行銷、AI 客服到經營管理軟體。
                       以下服務已按照創業不同階段的需求分類，幫助你在正確的時間選擇正確的服務。
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Badge variant="secondary" className="text-xs">
+                        <FileCheck2 className="h-3 w-3 mr-1" />
+                        公司註冊
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Building className="h-3 w-3 mr-1" />
+                        商務中心
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Calculator className="h-3 w-3 mr-1" />
+                        記帳服務
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
                         <Globe className="h-3 w-3 mr-1" />
-                        網域註冊
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        <Server className="h-3 w-3 mr-1" />
-                        主機代管
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        <Shield className="h-3 w-3 mr-1" />
-                        資安防護
+                        網域主機
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
                         <PenTool className="h-3 w-3 mr-1" />
@@ -995,6 +1012,25 @@ const StartupChecklist = () => {
                         <Megaphone className="h-3 w-3 mr-1" />
                         數位行銷
                       </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Bot className="h-3 w-3 mr-1" />
+                        AI 客服
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <LayoutDashboard className="h-3 w-3 mr-1" />
+                        經營管理
+                      </Badge>
+                    </div>
+                    <div className="pt-2">
+                      <a
+                        href="https://www.nss.com.tw/new-service"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        前往戰國策官網了解更多
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -1055,9 +1091,22 @@ const StartupChecklist = () => {
                           <p className="text-xs text-muted-foreground">{category.description}</p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-xs hidden sm:flex">
-                        {category.phaseTag}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs hidden sm:flex">
+                          {category.phaseTag}
+                        </Badge>
+                        {category.url && (
+                          <a
+                            href={category.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            了解更多
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
 

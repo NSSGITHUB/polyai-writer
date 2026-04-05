@@ -1508,6 +1508,7 @@ export interface NssServiceCategory {
   description: string;
   color: string;
   phaseTag: string;
+  url?: string;
   services: NssServiceItem[];
 }
 
@@ -1519,6 +1520,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '為你的品牌註冊專屬網域名稱，建立線上品牌識別的第一步',
     color: 'text-blue-400',
     phaseTag: '品牌建立階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-domain-tw',
@@ -1553,6 +1555,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '穩定可靠的網站託管服務，讓你的網站 24/7 全天候運作',
     color: 'text-green-400',
     phaseTag: '數位建置階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-hosting-shared',
@@ -1595,6 +1598,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '使用公司域名的專業電子郵件，提升品牌形象和客戶信任度',
     color: 'text-yellow-400',
     phaseTag: '品牌建立階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-email-basic',
@@ -1621,6 +1625,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '保護網站安全和客戶資料，建立使用者信任的安全基礎',
     color: 'text-red-400',
     phaseTag: '數位建置階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-ssl-standard',
@@ -1663,6 +1668,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '專業的網站設計和開發服務，打造符合品牌形象的企業官網',
     color: 'text-purple-400',
     phaseTag: '品牌建立階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-design-corporate',
@@ -1705,6 +1711,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '全方位數位行銷支援，幫助你的品牌被目標客群看見',
     color: 'text-orange-400',
     phaseTag: '客戶開發階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-marketing-seo',
@@ -1747,6 +1754,7 @@ export const nssServices: NssServiceCategory[] = [
     description: '企業級的實體伺服器和機房託管服務，適合高效能和高安全性需求',
     color: 'text-slate-400',
     phaseTag: '成長擴展階段',
+    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-server-dedicated',
@@ -1766,18 +1774,235 @@ export const nssServices: NssServiceCategory[] = [
       },
     ],
   },
+  // ---- 公司註冊服務 ----
+  {
+    id: 'nss-registration',
+    title: '公司註冊服務',
+    icon: 'FileCheck',
+    description: '一站式公司設立登記服務，從名稱預查到營業登記全程代辦，讓你專心準備創業',
+    color: 'text-emerald-400',
+    phaseTag: '公司設立階段',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-reg-company',
+        title: '公司設立登記代辦',
+        description: '完整的公司設立登記代辦服務，從公司名稱預查、章程擬定、資本額驗資到經濟部設立登記，全程由專業團隊處理。',
+        features: ['公司名稱預查與核准', '公司章程擬定', '資本額驗資協助', '經濟部設立登記', '統一編號取得', '營業登記代辦', '營業項目登記建議', '全程進度追蹤'],
+        recommended: '適合所有準備創業的人！省下研究法規的時間，避免文件錯誤導致退件延誤',
+        tips: '委託專業代辦可以省下大量時間和避免錯誤，讓你專注在核心業務的準備上。設立公司約需 1-2 週。',
+      },
+      {
+        id: 'nss-reg-branch',
+        title: '分公司/辦事處登記',
+        description: '協助設立分公司或辦事處登記，適合業務擴展到不同區域的企業。',
+        features: ['分公司設立登記', '辦事處登記', '營業地址變更', '負責人變更', '營業項目變更', '增資/減資手續'],
+        recommended: '適合需要在不同地區設立據點或進行公司變更的企業',
+        tips: '業務擴展時可以先設辦事處試水溫，確認市場再升級為分公司。',
+      },
+      {
+        id: 'nss-reg-foreign',
+        title: '外商公司在台設立',
+        description: '協助外國企業在台灣設立分公司或子公司，處理所有法規和申請程序。',
+        features: ['外國公司認許', '在台分公司設立', '在台子公司設立', '投資審議委員會申請', '外國人投資許可', '雙語文件處理'],
+        recommended: '適合有外資背景或海外合夥人的創業團隊',
+        tips: '外商在台設立公司的流程較複雜，強烈建議委託專業團隊處理。',
+      },
+    ],
+  },
+  // ---- 商務中心 ----
+  {
+    id: 'nss-business-center',
+    title: '商務中心',
+    icon: 'Building',
+    description: '專業的商務中心服務，提供會議室、共享辦公空間和秘書服務，打造專業企業形象',
+    color: 'text-amber-400',
+    phaseTag: '公司設立階段',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-bc-office',
+        title: '共享辦公空間',
+        description: '即租即用的專業辦公空間，包含辦公家具、網路、水電等基礎設施，無需長期租約。',
+        features: ['專業辦公環境', '含辦公家具和設備', '高速網路', '水電費含在內', '彈性租期（月租/季租）', '門禁安全管理', '公共區域使用', '免費咖啡茶水'],
+        recommended: '適合 1-10 人的新創團隊，省去裝潢和設備採購的成本和時間',
+        tips: '創業初期不需要租傳統辦公室，共享空間讓你用最低成本擁有專業辦公環境。',
+      },
+      {
+        id: 'nss-bc-meeting',
+        title: '會議室租用',
+        description: '專業的會議室按時租用服務，適合客戶會面、團隊會議和培訓活動。',
+        features: ['多種大小會議室可選', '投影設備和白板', '視訊會議設備', '按小時計費', '免費 Wi-Fi', '飲水和茶點服務', '線上預約系統'],
+        recommended: '適合需要偶爾進行客戶會面或團隊會議但不需要常設辦公室的企業',
+        tips: '見客戶時在專業會議室開會，比在咖啡店更能建立信任感。',
+      },
+      {
+        id: 'nss-bc-secretary',
+        title: '秘書與代接服務',
+        description: '專業的電話代接、郵件代收和訪客接待服務，讓你的公司看起來更專業。',
+        features: ['專業電話代接', '公司專線號碼', '郵件包裹代收', '訪客接待', '來電紀錄轉發', '客製化接聽用語', '多語言接聽服務'],
+        recommended: '適合在家工作或經常外出的創業者，不漏接任何商機',
+        tips: '有專人代接電話能讓客戶感受到你的專業度，特別是 B2B 業務。',
+      },
+    ],
+  },
+  // ---- 地址出租 ----
+  {
+    id: 'nss-address',
+    title: '商業地址出租',
+    icon: 'MapPin',
+    description: '提供合法的商業登記地址，無需實際租用辦公室即可完成公司登記',
+    color: 'text-teal-400',
+    phaseTag: '公司設立階段',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-addr-register',
+        title: '公司登記地址',
+        description: '提供合法的商業地址供公司設立登記使用，適合在家創業或遠端工作的創業者。',
+        features: ['合法商業登記地址', '可用於公司設立登記', '可用於營業登記', '位於商業區的優質地址', '提升企業形象', '郵件代收服務', '定期轉寄郵件'],
+        recommended: '最適合在家創業、遠端工作或還不需要實體辦公室的創業者',
+        tips: '使用商業地址登記可以避免把住家地址曝光，同時商業區地址也能提升客戶信任感。這是創業初期最省錢的選擇！',
+      },
+      {
+        id: 'nss-addr-virtual',
+        title: '虛擬辦公室方案',
+        description: '結合商業地址、電話代接和郵件服務的完整虛擬辦公室方案。',
+        features: ['商業登記地址', '專業電話代接', '郵件代收和轉寄', '每月數小時會議室使用', '公司名牌展示', '訪客接待服務', '彈性升級實體空間'],
+        recommended: '適合想要完整專業形象但預算有限的新創企業',
+        tips: '虛擬辦公室是性價比最高的方案，每月只需幾千元就能擁有完整的企業門面。',
+      },
+    ],
+  },
+  // ---- 記帳服務 ----
+  {
+    id: 'nss-accounting',
+    title: '記帳與稅務服務',
+    icon: 'Calculator',
+    description: '專業的記帳和稅務申報服務，讓你不用煩惱複雜的財務和稅務問題',
+    color: 'text-lime-400',
+    phaseTag: '財務規劃階段',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-acc-monthly',
+        title: '每月記帳服務',
+        description: '專業記帳士每月處理公司帳務，包含傳票登錄、帳冊編製和財務報表產出。',
+        features: ['每月傳票登錄', '會計帳冊編製', '損益表和資產負債表', '營業稅申報', '進銷項發票整理', '銀行對帳', '財務報表寄送', '線上帳務查詢'],
+        recommended: '每家公司都需要！即使規模再小，專業記帳能避免稅務問題和罰款',
+        tips: '自己記帳容易出錯又費時，委託專業記帳士每月只要幾千元，絕對值得。把時間花在更有價值的事情上。',
+      },
+      {
+        id: 'nss-acc-tax',
+        title: '年度稅務申報',
+        description: '營利事業所得稅年度申報服務，包含稅務規劃和合法節稅建議。',
+        features: ['營利事業所得稅申報', '稅務規劃建議', '合法節稅方案', '研發投資抵減申請', '未分配盈餘申報', '擴大書審/查帳申報', '國稅局查核協助'],
+        recommended: '每年 5 月必須完成營所稅申報，專業協助能確保正確且合法節稅',
+        tips: '善用政府的租稅優惠政策（如研發投資抵減），合法節稅可以為公司省下不少錢。',
+      },
+      {
+        id: 'nss-acc-payroll',
+        title: '薪資計算與代發',
+        description: '員工薪資計算、勞健保費用計算和薪資代發服務。',
+        features: ['每月薪資計算', '加班費和獎金計算', '勞健保費用計算', '薪資代發作業', '薪資單製作', '年度扣繳憑單', '勞退提撥計算'],
+        recommended: '適合有 3 人以上員工的企業，避免薪資計算錯誤產生的勞資糾紛',
+        tips: '薪資計算涉及勞基法、勞保、健保、所得稅等多項法規，錯誤可能導致罰款或勞資爭議。',
+      },
+    ],
+  },
+  // ---- AI 客服 ----
+  {
+    id: 'nss-ai-cs',
+    title: 'AI 智能客服',
+    icon: 'Bot',
+    description: '導入 AI 智能客服系統，24 小時自動回覆客戶問題，大幅降低客服成本',
+    color: 'text-cyan-400',
+    phaseTag: '客戶開發階段',
+    url: 'https://www.nss.com.tw/new-service',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-ai-chatbot',
+        title: 'AI 聊天機器人',
+        description: '基於人工智慧的聊天機器人，能理解客戶問題並自動回覆，支援網站和社群平台。',
+        features: ['自然語言理解 (NLU)', '24/7 全天候自動回覆', '支援中英文對話', '可嵌入官網和 LINE', '自動學習和優化', '常見問題自動回答', '複雜問題轉接真人', '對話記錄和分析'],
+        recommended: '適合每天有大量重複性客戶詢問的企業，如電商、服務業、SaaS 產品',
+        tips: '先整理出最常被問到的 50 個問題和標準答案，AI 客服就能處理 80% 以上的日常詢問。',
+      },
+      {
+        id: 'nss-ai-knowledge',
+        title: 'AI 知識庫客服',
+        description: '將公司的產品文件、FAQ、操作手冊等餵給 AI，建立專屬的智能知識庫客服。',
+        features: ['自動讀取公司文件建立知識庫', '精準回答產品相關問題', '支援 PDF、文件、網頁等多種格式', '持續學習新內容', '回答準確度追蹤', '管理後台分析報表'],
+        recommended: '適合產品或服務較複雜、需要大量文件支援的企業',
+        tips: '把你的產品手冊、FAQ、教學文章都匯入知識庫，AI 會越來越聰明，回答越來越精準。',
+      },
+      {
+        id: 'nss-ai-multichannel',
+        title: '多通路 AI 客服整合',
+        description: '整合官網、LINE、Facebook Messenger、Instagram 等多個客服通路，統一由 AI 管理。',
+        features: ['官網即時聊天', 'LINE 官方帳號整合', 'Facebook Messenger 整合', 'Instagram DM 整合', '統一客服後台', '跨通路對話紀錄', '客服數據分析儀表板', '自動分流和派工'],
+        recommended: '適合在多個平台經營且客服量大的企業',
+        tips: '客戶在哪裡，客服就要在哪裡。多通路整合讓你不漏接任何一個通路的客戶訊息。',
+      },
+    ],
+  },
+  // ---- 經營管理軟體 ----
+  {
+    id: 'nss-erp',
+    title: '經營管理軟體',
+    icon: 'LayoutDashboard',
+    description: '企業經營管理軟體解決方案，從進銷存到 ERP，全面提升營運效率',
+    color: 'text-violet-400',
+    phaseTag: '營運管理階段',
+    url: 'https://www.nss.com.tw/new-service',
+    services: [
+      {
+        id: 'nss-erp-pos',
+        title: 'POS 銷售系統',
+        description: '門市銷售管理系統，適合零售業、餐飲業和服務業的銷售管理需求。',
+        features: ['商品管理和庫存追蹤', '銷售結帳功能', '多種支付方式支援', '發票自動開立', '銷售報表和分析', '會員管理功能', '多門市管理', '雲端即時同步'],
+        recommended: '適合有實體門市的零售業、餐飲業和服務業',
+        tips: '好的 POS 系統不只是收銀機，更是掌握銷售數據和客戶行為的重要工具。',
+      },
+      {
+        id: 'nss-erp-inventory',
+        title: '進銷存管理系統',
+        description: '完整的進貨、銷售、庫存管理系統，適合有實體商品的企業。',
+        features: ['採購進貨管理', '銷售出貨管理', '即時庫存追蹤', '庫存預警通知', '供應商管理', '批號和效期管理', '多倉庫管理', '進銷存報表'],
+        recommended: '適合有實體商品的企業，特別是電商、批發商和零售商',
+        tips: '庫存管理做得好，可以大幅降低呆滯庫存和缺貨損失。越早導入越好。',
+      },
+      {
+        id: 'nss-erp-crm',
+        title: 'CRM 客戶管理系統',
+        description: '客戶關係管理系統，追蹤銷售機會、管理客戶互動和提升客戶滿意度。',
+        features: ['客戶資料管理', '銷售管線追蹤', '商機管理和預測', '客戶互動記錄', '自動化行銷功能', '客戶分群和標籤', '業績報表和儀表板', '團隊協作功能'],
+        recommended: '適合 B2B 企業或需要系統化管理客戶關係的業務',
+        tips: '從第一個客戶開始就用 CRM 記錄，等客戶多了才開始會非常痛苦。',
+      },
+      {
+        id: 'nss-erp-full',
+        title: '企業 ERP 系統',
+        description: '完整的企業資源規劃系統，整合財務、採購、銷售、庫存、人事等模組。',
+        features: ['財務會計模組', '採購管理模組', '銷售管理模組', '庫存管理模組', '人事薪資模組', '生產管理模組', '專案管理模組', '商業智慧 (BI) 分析'],
+        recommended: '適合員工超過 20 人或年營收超過千萬的成長中企業',
+        tips: 'ERP 是大工程，導入前要做好流程梳理。建議先從最痛的模組開始，分階段導入。',
+      },
+    ],
+  },
 ];
 
 // 戰國策服務與創業階段的對應關係
 export const nssPhaseMapping: Record<string, string[]> = {
   'mindset': [],
   'market': [],
-  'legal': ['nss-domain'],
-  'finance': [],
+  'legal': ['nss-domain', 'nss-registration', 'nss-address'],
+  'finance': ['nss-accounting'],
   'branding': ['nss-domain', 'nss-email', 'nss-design', 'nss-marketing'],
   'product': ['nss-hosting', 'nss-ssl', 'nss-design'],
-  'team': ['nss-email'],
-  'digital': ['nss-hosting', 'nss-email', 'nss-ssl', 'nss-design'],
-  'sales': ['nss-marketing'],
-  'growth': ['nss-server', 'nss-hosting', 'nss-marketing'],
+  'team': ['nss-email', 'nss-business-center'],
+  'digital': ['nss-hosting', 'nss-email', 'nss-ssl', 'nss-design', 'nss-erp'],
+  'sales': ['nss-marketing', 'nss-ai-cs'],
+  'growth': ['nss-server', 'nss-hosting', 'nss-marketing', 'nss-erp', 'nss-ai-cs'],
 };
