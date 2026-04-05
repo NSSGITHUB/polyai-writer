@@ -177,6 +177,93 @@ export interface AmoebaBudget {
 }
 
 // ============================================================
+// 績效獎金
+// ============================================================
+
+// 獎金計算方式
+export type BonusCalcMethod =
+  | 'profit_ratio'          // 依利潤提撥比例
+  | 'efficiency_tier'       // 依單位時間效率分級
+  | 'goal_achievement'      // 依目標達成率
+  | 'fixed_pool_split';     // 固定獎金池均分
+
+export const BONUS_METHOD_LABELS: Record<BonusCalcMethod, string> = {
+  profit_ratio: '利潤提撥制',
+  efficiency_tier: '效率分級制',
+  goal_achievement: '目標達成制',
+  fixed_pool_split: '獎金池均分制',
+};
+
+export const BONUS_METHOD_DESCRIPTIONS: Record<BonusCalcMethod, string> = {
+  profit_ratio: '從附加價值中按設定比例提撥作為獎金，再依成員工時占比分配',
+  efficiency_tier: '依單位時間效率達到的級距，決定獎金乘數 × 基本薪資',
+  goal_achievement: '依目標達成率決定獎金比例，超額達成可額外獎勵',
+  fixed_pool_split: '設定每月固定獎金池，依各單位附加價值占比分配',
+};
+
+// 效率分級門檻
+export interface EfficiencyTier {
+  min_efficiency: number;    // 最低效率門檻（含）
+  max_efficiency: number;    // 最高效率門檻（不含，0 代表無上限）
+  multiplier: number;        // 獎金乘數（× 基本月薪比例）
+  label: string;             // 級距名稱
+}
+
+// 獎金規則
+export interface AmoebaBonusRule {
+  id: string;
+  name: string;
+  method: BonusCalcMethod;
+  is_active: boolean;
+
+  // 利潤提撥制參數
+  profit_share_percent: number;         // 利潤提撥比例 %
+
+  // 效率分級制參數
+  efficiency_tiers: EfficiencyTier[];
+
+  // 目標達成制參數
+  achievement_base_percent: number;     // 基礎獎金比例（達成100%時）
+  achievement_exceed_bonus: number;     // 每超標1%的額外獎金比例
+  achievement_min_threshold: number;    // 最低達成率門檻（低於此不發放）
+
+  // 獎金池均分制參數
+  fixed_pool_amount: number;            // 每月固定獎金池金額
+
+  created_at: string;
+}
+
+// 個人獎金計算結果
+export interface AmoebaBonusResult {
+  member_id: string;
+  member_name: string;
+  member_role: string;
+  unit_id: string;
+  unit_name: string;
+  unit_code: string;
+  period: string;
+  base_salary: number;          // 基本月薪
+  monthly_hours: number;
+  bonus_amount: number;          // 獎金金額
+  bonus_ratio: number;           // 獎金佔薪比 %
+  calc_method: BonusCalcMethod;
+  calc_detail: string;           // 計算說明
+}
+
+// 單位獎金匯總
+export interface AmoebaUnitBonusSummary {
+  unit_id: string;
+  unit_name: string;
+  unit_code: string;
+  period: string;
+  total_bonus: number;
+  member_count: number;
+  avg_bonus: number;
+  profit_contribution: number;
+  efficiency: number;
+}
+
+// ============================================================
 // 常數
 // ============================================================
 

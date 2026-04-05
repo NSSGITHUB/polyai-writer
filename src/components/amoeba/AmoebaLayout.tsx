@@ -21,6 +21,8 @@ import {
   ScrollText,
   User,
   ChevronsUpDown,
+  Trophy,
+  Star,
 } from "lucide-react";
 
 interface AmoebaLayoutProps {
@@ -36,6 +38,8 @@ const navItems = [
   { path: "/amoeba/transfers", label: "內部交易", icon: ArrowLeftRight },
   { path: "/amoeba/goals", label: "目標設定", icon: Target },
   { path: "/amoeba/budgets", label: "預算管理", icon: Wallet },
+  { path: "/amoeba/bonus-rules", label: "獎金規則", icon: Star },
+  { path: "/amoeba/bonus-report", label: "獎金報表", icon: Trophy },
   { path: "/amoeba/reports", label: "經營報表", icon: BarChart3 },
   { path: "/amoeba/comparison", label: "多期比較", icon: GitCompareArrows },
   { path: "/amoeba/team", label: "團隊協作", icon: Users },

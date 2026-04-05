@@ -13,6 +13,10 @@ import type {
   AmoebaActivityLog,
   AmoebaRole,
   AmoebaUserContext,
+  AmoebaBonusRule,
+  AmoebaBonusResult,
+  AmoebaUnitBonusSummary,
+  BonusCalcMethod,
 } from '@/types/amoeba';
 
 // ============================================================
@@ -32,6 +36,7 @@ interface OrgData {
   budgets: AmoebaBudget[];
   collaborators: AmoebaCollaborator[];
   activityLog: AmoebaActivityLog[];
+  bonusRules: AmoebaBonusRule[];
 }
 
 interface UserIndex {
@@ -51,6 +56,7 @@ const defaultOrgData: OrgData = {
   budgets: [],
   collaborators: [],
   activityLog: [],
+  bonusRules: [],
 };
 
 function generateId(): string {
@@ -117,6 +123,7 @@ function migrateV1(userId: string) {
         budgets: old.budgets || [],
         collaborators: [],
         activityLog: [],
+        bonusRules: [],
       };
       saveOrgData(orgId, orgData);
       const idx = getUserIndex(userId);
@@ -706,6 +713,167 @@ export function useAmoebaStore() {
     [orgData, getMonthlyReport]
   );
 
+  // ========== Bonus Rules ==========
+
+  const bonusRules = orgData?.bonusRules || [];
+
+  const addBonusRule = useCallback(
+    (rule: Omit<AmoebaBonusRule, 'id' | 'created_at'>) => {
+      const newRule: AmoebaBonusRule = { ...rule, id: generateId(), created_at: new Date().toISOString() };
+      setOrgData((prev) =>
+        prev ? { ...prev, bonusRules: [...prev.bonusRules, newRule] } : prev
+      );
+      logActivity('新增獎金規則', 'bonus', rule.name, `方式：${rule.method}`);
+      return newRule;
+    },
+    [logActivity]
+  );
+
+  const updateBonusRule = useCallback(
+    (id: string, updates: Partial<AmoebaBonusRule>) => {
+      setOrgData((prev) =>
+        prev
+          ? { ...prev, bonusRules: prev.bonusRules.map((r) => (r.id === id ? { ...r, ...updates } : r)) }
+          : prev
+      );
+    },
+    []
+  );
+
+  const deleteBonusRule = useCallback(
+    (id: string) => {
+      setOrgData((prev) => {
+        if (!prev) return prev;
+        const rule = prev.bonusRules.find((r) => r.id === id);
+        if (rule) logActivity('刪除獎金規則', 'bonus', rule.name);
+        return { ...prev, bonusRules: prev.bonusRules.filter((r) => r.id !== id) };
+      });
+    },
+    [logActivity]
+  );
+
+  // Bonus calculation engine
+  const calculateBonus = useCallback(
+    (period: string, ruleId?: string): { results: AmoebaBonusResult[]; summaries: AmoebaUnitBonusSummary[] } => {
+      if (!orgData) return { results: [], summaries: [] };
+
+      const rule = ruleId
+        ? orgData.bonusRules.find((r) => r.id === ruleId)
+        : orgData.bonusRules.find((r) => r.is_active);
+
+      if (!rule) return { results: [], summaries: [] };
+
+      const reports = orgData.units
+        .filter((u) => u.is_active)
+        .map((u) => getMonthlyReport(u.id, period))
+        .filter((r): r is AmoebaMonthlyReport => r !== null);
+
+      const totalGrossProfit = reports.reduce((s, r) => s + Math.max(0, r.gross_profit), 0);
+      const results: AmoebaBonusResult[] = [];
+      const summaryMap = new Map<string, AmoebaUnitBonusSummary>();
+
+      for (const report of reports) {
+        const unitMembers = orgData.members.filter((m) => m.unit_id === report.unit_id && m.is_active);
+        const unitTotalHours = unitMembers.reduce((s, m) => s + m.monthly_hours, 0);
+
+        let unitTotalBonus = 0;
+
+        for (const member of unitMembers) {
+          const baseSalary = member.hourly_rate * member.monthly_hours;
+          const hourRatio = unitTotalHours > 0 ? member.monthly_hours / unitTotalHours : 0;
+          let bonusAmount = 0;
+          let calcDetail = '';
+
+          switch (rule.method) {
+            case 'profit_ratio': {
+              const unitBonus = Math.max(0, report.gross_profit) * (rule.profit_share_percent / 100);
+              bonusAmount = unitBonus * hourRatio;
+              calcDetail = `附加價值 $${report.gross_profit.toLocaleString()} × ${rule.profit_share_percent}% × 工時佔比 ${(hourRatio * 100).toFixed(1)}%`;
+              break;
+            }
+            case 'efficiency_tier': {
+              const eff = report.hourly_efficiency;
+              const tier = rule.efficiency_tiers.find(
+                (t) => eff >= t.min_efficiency && (t.max_efficiency === 0 || eff < t.max_efficiency)
+              );
+              if (tier) {
+                bonusAmount = baseSalary * tier.multiplier;
+                calcDetail = `效率 $${Math.round(eff)}/hr → ${tier.label}，月薪 $${baseSalary.toLocaleString()} × ${tier.multiplier}`;
+              } else {
+                calcDetail = `效率 $${Math.round(eff)}/hr 未達任何級距門檻`;
+              }
+              break;
+            }
+            case 'goal_achievement': {
+              const goal = orgData.goals.find((g) => g.unit_id === report.unit_id && g.period === period);
+              if (goal && goal.target_profit > 0) {
+                const rate = (report.gross_profit / goal.target_profit) * 100;
+                if (rate >= rule.achievement_min_threshold) {
+                  let bonusPercent = rule.achievement_base_percent;
+                  if (rate > 100) {
+                    bonusPercent += (rate - 100) * rule.achievement_exceed_bonus;
+                  } else {
+                    bonusPercent *= rate / 100;
+                  }
+                  bonusAmount = baseSalary * (bonusPercent / 100);
+                  calcDetail = `達成率 ${rate.toFixed(1)}%，獎金比 ${bonusPercent.toFixed(1)}%，月薪 $${baseSalary.toLocaleString()}`;
+                } else {
+                  calcDetail = `達成率 ${rate.toFixed(1)}% 低於門檻 ${rule.achievement_min_threshold}%`;
+                }
+              } else {
+                calcDetail = '未設定目標，無法計算';
+              }
+              break;
+            }
+            case 'fixed_pool_split': {
+              const profitShare = totalGrossProfit > 0
+                ? Math.max(0, report.gross_profit) / totalGrossProfit
+                : 0;
+              const unitPool = rule.fixed_pool_amount * profitShare;
+              bonusAmount = unitPool * hourRatio;
+              calcDetail = `獎金池 $${rule.fixed_pool_amount.toLocaleString()} × 貢獻佔比 ${(profitShare * 100).toFixed(1)}% × 工時佔比 ${(hourRatio * 100).toFixed(1)}%`;
+              break;
+            }
+          }
+
+          bonusAmount = Math.round(Math.max(0, bonusAmount));
+          unitTotalBonus += bonusAmount;
+
+          results.push({
+            member_id: member.id,
+            member_name: member.name,
+            member_role: member.role,
+            unit_id: report.unit_id,
+            unit_name: report.unit_name,
+            unit_code: report.unit_code,
+            period,
+            base_salary: baseSalary,
+            monthly_hours: member.monthly_hours,
+            bonus_amount: bonusAmount,
+            bonus_ratio: baseSalary > 0 ? (bonusAmount / baseSalary) * 100 : 0,
+            calc_method: rule.method,
+            calc_detail: calcDetail,
+          });
+        }
+
+        summaryMap.set(report.unit_id, {
+          unit_id: report.unit_id,
+          unit_name: report.unit_name,
+          unit_code: report.unit_code,
+          period,
+          total_bonus: unitTotalBonus,
+          member_count: unitMembers.length,
+          avg_bonus: unitMembers.length > 0 ? Math.round(unitTotalBonus / unitMembers.length) : 0,
+          profit_contribution: report.gross_profit,
+          efficiency: report.hourly_efficiency,
+        });
+      }
+
+      return { results, summaries: Array.from(summaryMap.values()) };
+    },
+    [orgData, getMonthlyReport]
+  );
+
   // ========== Activity Log ==========
 
   const activityLog = orgData?.activityLog || [];
@@ -793,6 +961,13 @@ export function useAmoebaStore() {
     addBudget,
     updateBudget,
     deleteBudget,
+
+    // Bonus
+    bonusRules,
+    addBonusRule,
+    updateBonusRule,
+    deleteBonusRule,
+    calculateBonus,
 
     // Reports
     getMonthlyReport,

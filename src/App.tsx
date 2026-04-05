@@ -27,6 +27,8 @@ import AmoebaBudgets from "./pages/AmoebaBudgets";
 import AmoebaComparison from "./pages/AmoebaComparison";
 import AmoebaTeam from "./pages/AmoebaTeam";
 import AmoebaActivity from "./pages/AmoebaActivity";
+import AmoebaBonusRules from "./pages/AmoebaBonusRules";
+import AmoebaBonusReport from "./pages/AmoebaBonusReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,8 @@ const App = () => (
           <Route path="/amoeba/transfers" element={<AmoebaTransfers />} />
           <Route path="/amoeba/goals" element={<AmoebaGoals />} />
           <Route path="/amoeba/budgets" element={<AmoebaBudgets />} />
+          <Route path="/amoeba/bonus-rules" element={<AmoebaBonusRules />} />
+          <Route path="/amoeba/bonus-report" element={<AmoebaBonusReport />} />
           <Route path="/amoeba/reports" element={<AmoebaReports />} />
           <Route path="/amoeba/comparison" element={<AmoebaComparison />} />
           <Route path="/amoeba/team" element={<AmoebaTeam />} />
