@@ -1919,7 +1919,6 @@ export const nssServices: NssServiceCategory[] = [
     color: 'text-cyan-400',
     phaseTag: '客戶開發階段',
     url: 'https://www.nss.com.tw/new-service',
-    url: 'https://www.nss.com.tw/new-service',
     services: [
       {
         id: 'nss-ai-chatbot',
