@@ -16,6 +16,8 @@ import KeyManagement from "./pages/KeyManagement";
 import WordPressSites from "./pages/WordPressSites";
 import ScheduledPosts from "./pages/ScheduledPosts";
 import NotFound from "./pages/NotFound";
+import SipSettings from "./pages/SipSettings";
+import AutoDialer from "./pages/AutoDialer";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/key-management" element={<KeyManagement />} />
           <Route path="/wordpress-sites" element={<WordPressSites />} />
           <Route path="/scheduled-posts" element={<ScheduledPosts />} />
+          <Route path="/sip-settings" element={<SipSettings />} />
+          <Route path="/auto-dialer" element={<AutoDialer />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

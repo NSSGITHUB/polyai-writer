@@ -11,7 +11,9 @@ import {
   LogOut,
   Key,
   Globe,
-  Clock
+  Clock,
+  Phone,
+  PhoneCall
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -248,13 +250,31 @@ const Dashboard = () => {
             <p className="text-muted-foreground">管理 WordPress 網站，一鍵發佈文章</p>
           </Card>
 
-          <Card 
+          <Card
             className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
             onClick={() => navigate("/scheduled-posts")}
           >
             <Clock className="w-12 h-12 text-primary-glow mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">排程管理</h3>
             <p className="text-muted-foreground">查看排程進度與發送紀錄</p>
+          </Card>
+
+          <Card
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/auto-dialer")}
+          >
+            <PhoneCall className="w-12 h-12 text-green-400 mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">AI 自動撥號</h3>
+            <p className="text-muted-foreground">使用中華電信 SIP 自動撥號開發客戶</p>
+          </Card>
+
+          <Card
+            className="p-6 bg-gradient-card backdrop-blur-sm border-primary/20 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer group"
+            onClick={() => navigate("/sip-settings")}
+          >
+            <Phone className="w-12 h-12 text-blue-400 mb-4 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-semibold mb-2">SIP 電話設定</h3>
+            <p className="text-muted-foreground">設定中華電信 SIP 帳號與連線參數</p>
           </Card>
         </div>
 
